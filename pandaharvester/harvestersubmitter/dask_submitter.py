@@ -1,6 +1,6 @@
 import os
 import argparse
-#import traceback
+import traceback
 from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor
 
