@@ -27,6 +27,7 @@ DEF_ARGS = ["-c", "cd; python $EXEC_DIR/pilots_starter.py || true"]
 
 # submitter for Dask
 class DaskSubmitter(PluginBase):
+
     # constructor
     def __init__(self, **kwarg):
         self.logBaseURL = None
@@ -38,7 +39,7 @@ class DaskSubmitter(PluginBase):
         namespace = self.panda_queues_dict.get_k8s_namespace(self.queueName)
 
         # dask_Client() = stand-alone dask submitter
-        # self.dask_client = dask_Client(namespace=namespace, queue_name=self.queueName)
+        # self.dask_client = dask_Client(namespace=namespace, queue_name=self.queueName, config_file=self.dask_config_file)
 
         # required for parsing jobParams
         self.parser = argparse.ArgumentParser()
@@ -115,7 +116,7 @@ class DaskSubmitter(PluginBase):
         return container_image
 
     def submit_dask_worker(self, work_spec):
-        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='submit_k8s_worker')
+        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='submit_dask_worker')
 
         # get info from harvester queue config
         _queueConfigMapper = QueueConfigMapper()
@@ -125,6 +126,7 @@ class DaskSubmitter(PluginBase):
         log_file_name = f'{harvester_config.master.harvester_id}_{work_spec.workerID}.out'
         work_spec.set_log_file('stdout', f'{self.logBaseURL}/{log_file_name}')
 
+        yaml_content = self.k8s_client.read_yaml_file(self.k8s_yaml_file)
         try:
             # read the job configuration (if available, only push model)
             job_fields, job_pars_parsed = self.read_job_configuration(work_spec)
@@ -151,8 +153,23 @@ class DaskSubmitter(PluginBase):
                 tmp_log.warning(f'Could not retrieve maxtime field for queue {self.queueName}')
                 max_time = None
 
+            prod_source_label = harvester_queue_config.get_source_label(work_spec.jobType)
 
-    # submit workers
+            # create the scheduler and workers
+            # ..
+
+        except Exception as exc:
+            tmp_log.error(traceback.format_exc())
+            err_str = f'Failed to create a JOB; {exc}'
+            tmp_return_value = (False, err_str)
+        else:
+            work_spec.batchID = yaml_content['metadata']['name']
+            tmp_log.debug(f'Created worker {work_spec.workerID} with batchID={work_spec.batchID}')
+            tmp_return_value = (True, '')
+
+        return tmp_return_value
+
+    # submit workers (and scheduler)
     def submit_workers(self, workspec_list):
         tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='submit_workers')
 
