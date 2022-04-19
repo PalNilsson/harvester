@@ -4,6 +4,11 @@ import traceback
 from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor
 
+import random
+import sys
+import time
+from string import ascii_lowercase
+
 from pandaharvester.harvestercore import core_utils
 from pandaharvester.harvestercore.plugin_base import PluginBase
 #from pandaharvester.harvestermisc.k8s_utils import k8s_Client
@@ -121,6 +126,7 @@ class DaskSubmitter(PluginBase):
         _ports = {'dask-scheduler-service': [80, 8786],
                   'jupyterlab-service': [80, 8888]}
 
+    # from k8s submitter
     def read_job_configuration(self, work_spec):
 
         try:
@@ -135,6 +141,7 @@ class DaskSubmitter(PluginBase):
 
         return None, None
 
+    # from k8s submitter
     def decide_container_image(self, job_fields, job_pars_parsed):
         """
         Decide container image:
