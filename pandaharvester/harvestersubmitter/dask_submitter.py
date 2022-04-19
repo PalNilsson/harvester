@@ -24,6 +24,14 @@ DEF_IMAGE = DEF_CENTOS7_IMAGE
 DEF_COMMAND = ["/usr/bin/bash"]
 DEF_ARGS = ["-c", "cd; python $EXEC_DIR/pilots_starter.py || true"]
 
+# internal error codes
+ERROR_NAMESPACE = 1
+ERROR_PVPVC = 2
+ERROR_CREATESERVICE = 3
+ERROR_LOADBALANCER = 4
+ERROR_DEPLOYMENT = 5
+ERROR_PODFAILURE = 6
+ERROR_DASKWORKER = 7
 
 # submitter for Dask
 class DaskSubmitter(PluginBase):
@@ -68,6 +76,50 @@ class DaskSubmitter(PluginBase):
         except AttributeError:
             if os.getenv('PROXY_SECRET_PATH_ANAL'):
                 self.proxySecretPath = os.getenv('PROXY_SECRET_PATH_ANAL')
+
+        #
+        _nworkers = 1
+        _namespace = ''
+        _userid = ''
+        _mountpath = '/mnt/dask'
+        _ispvc = False  # set when PVC is successfully created
+        _ispv = False  # set when PV is successfully created
+        _password = None
+        _interactive_mode = True
+        _workdir = ''
+        _nfs_server = "10.226.152.66"
+
+        _files = {
+            'dask-scheduler-service': 'dask-scheduler-service.yaml',
+            'dask-scheduler': 'dask-scheduler-deployment.yaml',
+            'dask-worker': 'dask-worker-deployment-%d.yaml',
+            'dask-pilot': 'dask-pilot-deployment.yaml',
+            'jupyterlab-service': 'jupyterlab-service.yaml',
+            'jupyterlab': 'jupyterlab-deployment.yaml',
+            'namespace': 'namespace.json',
+            'pvc': 'pvc.yaml',
+            'pv': 'pv.yaml',
+        }
+
+        _images = {
+            'dask-scheduler': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-scheduler:latest',
+            'dask-worker': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker:latest',
+            'dask-pilot': 'palnilsson/dask-pilot:latest',
+            'jupyterlab': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/datascience-notebook:latest',
+        }
+
+        _podnames = {
+            'dask-scheduler-service': 'dask-scheduler',
+            'dask-scheduler': 'dask-scheduler',
+            'dask-worker': 'dask-worker',
+            'dask-pilot': 'dask-pilot',
+            'jupyterlab-service': 'jupyterlab',
+            'jupyterlab': 'jupyterlab',
+        }
+
+        # { name: [port, targetPort], .. }
+        _ports = {'dask-scheduler-service': [80, 8786],
+                  'jupyterlab-service': [80, 8888]}
 
     def read_job_configuration(self, work_spec):
 
