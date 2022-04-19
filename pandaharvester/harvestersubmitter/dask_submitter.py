@@ -1,3 +1,11 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Authors:
+# - Paul Nilsson, paul.nilsson@cern.ch, 2022
+
 import os
 import argparse
 import traceback
@@ -16,6 +24,7 @@ from pandaharvester.harvesterconfig import harvester_config
 from pandaharvester.harvestermisc.info_utils import PandaQueuesDict
 from pandaharvester.harvestercore.queue_config_mapper import QueueConfigMapper
 #from pandaharvester.harvestersubmitter import submitter_common
+import pandaharvester.harvestermisc.dask_utils
 
 # logger
 base_logger = core_utils.setup_logger('dask_submitter')
@@ -166,7 +175,7 @@ class DaskSubmitter(PluginBase):
         """
 
         namespace_filename = os.path.join(self._workdir, self._files.get('namespace', 'unknown'))
-        return utilities.create_namespace(self._namespace, namespace_filename)
+        return dask_utils.create_namespace(self._namespace, namespace_filename)
 
     def create_pvcpv(self, name='pvc'):
         """
@@ -178,19 +187,19 @@ class DaskSubmitter(PluginBase):
 
         if name not in ['pvc', 'pv']:
             stderr = 'unknown PVC/PC name: %s', name
-            logger.warning(stderr)
+            base_logger.warning(stderr)
             return False, stderr
 
         # create the yaml file
         path = os.path.join(os.path.join(self._workdir, self._files.get(name, 'unknown')))
-        func = utilities.get_pvc_yaml if name == 'pvc' else utilities.get_pv_yaml
+        func = dask_utils.get_pvc_yaml if name == 'pvc' else dask_utils.get_pv_yaml
         yaml = func(namespace=self._namespace, user_id=self._userid, nfs_server=self._nfs_server)
-        status = utilities.write_file(path, yaml)
+        status = dask_utils.write_file(path, yaml)
         if not status:
             return False, 'write_file failed for file %s' % path
 
         # create the PVC/PV
-        status, _, stderr = utilities.kubectl_create(filename=path)
+        status, _, stderr = dask_utils.kubectl_create(filename=path)
         if name == 'pvc':
             self._ispvc = status
         elif name == 'pv':
@@ -209,17 +218,17 @@ class DaskSubmitter(PluginBase):
         fname = self._files.get(name, 'unknown')
         if fname == 'unknown':
             stderr = 'unknown file name for %s yaml' % name
-            logger.warning(stderr)
+            base_logger.warning(stderr)
             return stderr
         image = self._images.get(name, 'unknown')
         if image == 'unknown':
             stderr = 'unknown image for %s pod' % name
-            logger.warning(stderr)
+            base_logger.warning(stderr)
             return stderr
 
         # create yaml
         name += '-service'
-        func = utilities.get_scheduler_yaml if name == 'dask-scheduler-service' else utilities.get_jupyterlab_yaml
+        func = dask_utils.get_scheduler_yaml if name == 'dask-scheduler-service' else dask_utils.get_jupyterlab_yaml
         path = os.path.join(self._workdir, fname)
         yaml = func(image_source=image,
                     nfs_path=self._mountpath,
@@ -227,14 +236,14 @@ class DaskSubmitter(PluginBase):
                     user_id=self._userid,
                     port=self.get_ports(name)[1],
                     password=self._password)
-        status = utilities.write_file(path, yaml, mute=False)
+        status = dask_utils.write_file(path, yaml, mute=False)
         if not status:
             stderr = 'cannot continue since file %s could not be created' % path
-            logger.warning(stderr)
+            base_logger.warning(stderr)
             return stderr
 
         # start the dask scheduler pod
-        status, _, stderr = utilities.kubectl_create(filename=path)
+        status, _, stderr = dask_utils.kubectl_create(filename=path)
         if not status:
             return stderr
 
@@ -248,7 +257,7 @@ class DaskSubmitter(PluginBase):
         :return: IP number (string), pod name (string), stderr (string).
         """
 
-        func = utilities.get_scheduler_info if service == 'dask-scheduler' else utilities.get_jupyterlab_info
+        func = dask_utils.get_scheduler_info if service == 'dask-scheduler' else dask_utils.get_jupyterlab_info
         return func(namespace=self._namespace)
 
     def deploy_dask_workers(self, scheduler_ip='', scheduler_pod_name='', jupyter_pod_name=''):
@@ -261,7 +270,7 @@ class DaskSubmitter(PluginBase):
         :return: True if successful, stderr (Boolean, string)
         """
 
-        worker_info, stderr = utilities.deploy_workers(scheduler_ip,
+        worker_info, stderr = dask_utils.deploy_workers(scheduler_ip,
                                                        self._nworkers,
                                                        self._files,
                                                        self._namespace,
@@ -270,19 +279,19 @@ class DaskSubmitter(PluginBase):
                                                        self._mountpath,
                                                        self._workdir)
         if not worker_info:
-            logger.warning('failed to deploy workers: %s', stderr)
+            base_logger.warning('failed to deploy workers: %s', stderr)
             return False, stderr
 
         # wait for the worker pods to start
         # (send any scheduler and jupyter pod name to function so they can be removed from a query)
         try:
-            status = utilities.await_worker_deployment(worker_info,
+            status = dask_utils.await_worker_deployment(worker_info,
                                                        self._namespace,
                                                        scheduler_pod_name=scheduler_pod_name,
                                                        jupyter_pod_name=jupyter_pod_name)
         except Exception as exc:
             stderr = 'caught exception: %s', exc
-            logger.warning(stderr)
+            base_logger.warning(stderr)
             status = False
 
         return status, stderr
@@ -297,27 +306,27 @@ class DaskSubmitter(PluginBase):
 
         # create pilot yaml
         path = os.path.join(self._workdir, self._files.get('dask-pilot', 'unknown'))
-        yaml = utilities.get_pilot_yaml(image_source=self._images.get('dask-pilot', 'unknown'),
+        yaml = dask_utils.get_pilot_yaml(image_source=self._images.get('dask-pilot', 'unknown'),
                                         nfs_path=self._mountpath,
                                         namespace=self._namespace,
                                         user_id=self._userid,
                                         scheduler_ip=scheduler_ip,
                                         panda_id='1234567890')
-        status = utilities.write_file(path, yaml, mute=False)
+        status = dask_utils.write_file(path, yaml, mute=False)
         if not status:
             stderr = 'cannot continue since pilot yaml file could not be created'
-            logger.warning(stderr)
+            base_logger.warning(stderr)
             return False, stderr
 
         # start the pilot pod
-        status, _, stderr = utilities.kubectl_create(filename=path)
+        status, _, stderr = dask_utils.kubectl_create(filename=path)
         if not status:
-            logger.warning('failed to create pilot pod: %s', stderr)
+            base_logger.warning('failed to create pilot pod: %s', stderr)
             return False, stderr
         else:
-            logger.debug('created pilot pod')
+            base_logger.debug('created pilot pod')
 
-        return utilities.wait_until_deployment(name=self._podnames.get('dask-pilot', 'unknown'), state='Running', namespace=self._namespace)
+        return dask_utils.wait_until_deployment(name=self._podnames.get('dask-pilot', 'unknown'), state='Running', namespace=self._namespace)
 
     def copy_bundle(self):
         """
@@ -353,23 +362,23 @@ class DaskSubmitter(PluginBase):
         _stderr = ''
 
         path = os.path.join(self._workdir, self._files.get(servicename, 'unknown'))
-        yaml = utilities.get_service_yaml(namespace=self._namespace,
+        yaml = dask_utils.get_service_yaml(namespace=self._namespace,
                                           name=self._podnames.get(servicename, 'unknown'),
                                           port=port,
                                           targetport=targetport)
-        status = utilities.write_file(path, yaml, mute=False)
+        status = dask_utils.write_file(path, yaml, mute=False)
         if not status:
             _stderr = 'cannot continue since %s service yaml file could not be created' % servicename
-            logger.warning(_stderr)
+            base_logger.warning(_stderr)
             return _stderr
 
         # start the service
-        status, _, _stderr = utilities.kubectl_create(filename=path)
+        status, _, _stderr = dask_utils.kubectl_create(filename=path)
         if not status:
-            logger.warning('failed to create %s pod: %s', self._podnames.get(servicename, 'unknown'), _stderr)
+            base_logger.warning('failed to create %s pod: %s', self._podnames.get(servicename, 'unknown'), _stderr)
             return _stderr
 
-        #        status, _external_ip, _stderr = utilities.wait_until_deployment(name=self._podnames.get('dask-scheduler-service','unknown'), namespace=self._namespace)
+        #        status, _external_ip, _stderr = dask_utils.wait_until_deployment(name=self._podnames.get('dask-scheduler-service','unknown'), namespace=self._namespace)
 
         return _stderr
 
@@ -381,7 +390,7 @@ class DaskSubmitter(PluginBase):
         :return: host IP (string), stderr (string).
         """
 
-        _, _ip, _stderr = utilities.wait_until_deployment(name=self._podnames.get(name, 'unknown'),
+        _, _ip, _stderr = dask_utils.wait_until_deployment(name=self._podnames.get(name, 'unknown'),
                                                           namespace=self._namespace, service=True)
         return _ip, _stderr
 
@@ -404,25 +413,25 @@ class DaskSubmitter(PluginBase):
         status, stderr = submitter.create_namespace()
         if not status:
             stderr = 'failed to create namespace %s: %s' % (submitter.get_namespace(), stderr)
-            logger.warning(stderr)
+            base_logger.warning(stderr)
             cleanup()
             return ERROR_NAMESPACE, {}, stderr
         timing['tnamespace'] = time.time()
-        logger.info('created namespace: %s', submitter.get_namespace())
+        base_logger.info('created namespace: %s', submitter.get_namespace())
 
         # create PVC and PV
         for name in ['pvc', 'pv']:
             status, stderr = submitter.create_pvcpv(name=name)
             if not status:
                 stderr = 'could not create PVC/PV: %s' % stderr
-                logger.warning(stderr)
+                base_logger.warning(stderr)
                 cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid())
                 exitcode = ERROR_PVPVC
                 break
         timing['tpvcpv'] = time.time()
         if exitcode:
             return exitcode, {}, stderr
-        logger.info('created PVC and PV')
+        base_logger.info('created PVC and PV')
 
         # create the dask scheduler service with a load balancer (the external IP of the load balancer will be made
         # available to the caller)
@@ -446,14 +455,14 @@ class DaskSubmitter(PluginBase):
             _ip, stderr = submitter.wait_for_service(_service)
             if stderr:
                 stderr = 'failed to start load balancer for %s: %s' % (_service, stderr)
-                logger.warning(stderr)
+                base_logger.warning(stderr)
                 cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
                 exitcode = ERROR_LOADBALANCER
                 break
             if service not in service_info:
                 service_info[service] = {}
             service_info[service]['external_ip'] = _ip
-            logger.info('load balancer for %s has external ip=%s', _service, service_info[service].get('external_ip'))
+            base_logger.info('load balancer for %s has external ip=%s', _service, service_info[service].get('external_ip'))
         timing['tloadbalancers'] = time.time()
         if exitcode:
             return exitcode, {}, stderr
@@ -463,7 +472,7 @@ class DaskSubmitter(PluginBase):
             stderr = submitter.deploy_service_pod(service)
             if stderr:
                 stderr = 'failed to deploy %s pod: %s' % (service, stderr)
-                logger.warning(stderr)
+                base_logger.warning(stderr)
                 cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
                 exitcode = ERROR_DEPLOYMENT
                 break
@@ -478,25 +487,25 @@ class DaskSubmitter(PluginBase):
             internal_ip, _pod_name, stderr = submitter.get_service_info(service)
             if stderr:
                 stderr = '%s pod failed: %s' % (service, stderr)
-                logger.warning(stderr)
+                base_logger.warning(stderr)
                 cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
                 exitcode = ERROR_PODFAILURE
                 break
             service_info[service]['internal_ip'] = internal_ip
             service_info[service]['pod_name'] = _pod_name
             if internal_ip:
-                logger.info('pod %s with internal ip=%s started correctly', _pod_name, internal_ip)
+                base_logger.info('pod %s with internal ip=%s started correctly', _pod_name, internal_ip)
             else:
-                logger.info('pod %s started correctly', _pod_name)
+                base_logger.info('pod %s started correctly', _pod_name)
         timing['tserviceinfo'] = time.time()
         if exitcode:
             return exitcode, {}, stderr
 
         # switch context for the new namespace
-        # status = utilities.kubectl_execute(cmd='config use-context', namespace=namespace)
+        # status = dask_utils.kubectl_execute(cmd='config use-context', namespace=namespace)
 
         # switch context for the new namespace
-        # status = utilities.kubectl_execute(cmd='config use-context', namespace='default')
+        # status = dask_utils.kubectl_execute(cmd='config use-context', namespace='default')
 
         # deploy the worker pods
         status, stderr = submitter.deploy_dask_workers(scheduler_ip=service_info['dask-scheduler'].get('internal_ip'),
@@ -504,13 +513,13 @@ class DaskSubmitter(PluginBase):
                                                        jupyter_pod_name=service_info['jupyterlab'].get('pod_name'))
         if not status:
             stderr = 'failed to deploy dask workers: %s' % stderr
-            logger.warning(stderr)
+            base_logger.warning(stderr)
             cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
             exitcode = ERROR_DASKWORKER
         timing['tdaskworkers'] = time.time()
         if exitcode:
             return exitcode, {}, stderr
-        logger.info('deployed all dask-worker pods')
+        base_logger.info('deployed all dask-worker pods')
 
         # return the jupyterlab and dask scheduler IPs to the user in interactive mode
         if self._interactive_mode:
@@ -523,14 +532,14 @@ class DaskSubmitter(PluginBase):
 
         # time.sleep(30)
         cmd = 'kubectl logs dask-pilot --namespace=%s' % submitter.get_namespace()
-        logger.debug('executing: %s', cmd)
-        ec, stdout, stderr = utilities.execute(cmd)
-        logger.debug(stdout)
+        base_logger.debug('executing: %s', cmd)
+        ec, stdout, stderr = dask_utils.execute(cmd)
+        base_logger.debug(stdout)
 
         if not status:
             cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
             exit(-1)
-        logger.info('deployed pilot pod')
+        base_logger.info('deployed pilot pod')
 
         return exitcode, stderr
 
@@ -550,7 +559,7 @@ class DaskSubmitter(PluginBase):
         _info += '\n----------------------------------'
         _info += '\ntotal time:\t\t\t%d s' % sum((timing[key] - timing['t0']) for key in timing)
         _info += '\n********************************************************'
-        logger.info(_info)
+        base_logger.info(_info)
 
     def create_cleanup_script(self):
         """
@@ -570,7 +579,7 @@ class DaskSubmitter(PluginBase):
         cmds += 'kubectl delete namespaces single-user-%s\n' % self._userid
 
         path = os.path.join(self._workdir, 'deleteall.sh')
-        status = utilities.write_file(path, cmds)
+        status = dask_utils.write_file(path, cmds)
         if not status:
             return False, 'write_file failed for file %s' % path
         else:
@@ -589,45 +598,45 @@ class DaskSubmitter(PluginBase):
 
         if namespace:
             cmd = 'kubectl delete --all deployments --namespace=%s' % namespace
-            logger.debug('executing: %s', cmd)
-            ec, stdout, stderr = utilities.execute(cmd)
-            logger.debug(stdout)
+            base_logger.debug('executing: %s', cmd)
+            ec, stdout, stderr = dask_utils.execute(cmd)
+            base_logger.debug(stdout)
 
             cmd = 'kubectl delete --all pods --namespace=%s' % namespace
-            logger.debug('executing: %s', cmd)
-            ec, stdout, stderr = utilities.execute(cmd)
-            logger.debug(stdout)
+            base_logger.debug('executing: %s', cmd)
+            ec, stdout, stderr = dask_utils.execute(cmd)
+            base_logger.debug(stdout)
 
             cmd = 'kubectl delete --all services --namespace=%s' % namespace
-            logger.debug('executing: %s', cmd)
-            ec, stdout, stderr = utilities.execute(cmd)
-            logger.debug(stdout)
+            base_logger.debug('executing: %s', cmd)
+            ec, stdout, stderr = dask_utils.execute(cmd)
+            base_logger.debug(stdout)
 
         if pvc:
             cmd = 'kubectl patch pvc fileserver-claim -p \'{\"metadata\": {\"finalizers\": null}}\' --namespace=%s' % namespace
-            logger.debug('executing: %s', cmd)
-            ec, stdout, stderr = utilities.execute(cmd)
-            logger.debug(stdout)
+            base_logger.debug('executing: %s', cmd)
+            ec, stdout, stderr = dask_utils.execute(cmd)
+            base_logger.debug(stdout)
             cmd = 'kubectl delete pvc fileserver-claim --namespace=%s' % namespace
-            logger.debug('executing: %s', cmd)
-            ec, stdout, stderr = utilities.execute(cmd)
-            logger.debug(stdout)
+            base_logger.debug('executing: %s', cmd)
+            ec, stdout, stderr = dask_utils.execute(cmd)
+            base_logger.debug(stdout)
 
         if pv:
             cmd = 'kubectl patch pv fileserver-%s -p \'{\"metadata\": {\"finalizers\": null}}\'' % user_id
-            logger.debug('executing: %s', cmd)
-            ec, stdout, stderr = utilities.execute(cmd)
-            logger.debug(stdout)
+            base_logger.debug('executing: %s', cmd)
+            ec, stdout, stderr = dask_utils.execute(cmd)
+            base_logger.debug(stdout)
             cmd = 'kubectl delete pv fileserver-%s' % user_id
-            logger.debug('executing: %s', cmd)
-            ec, stdout, stderr = utilities.execute(cmd)
-            logger.debug(stdout)
+            base_logger.debug('executing: %s', cmd)
+            ec, stdout, stderr = dask_utils.execute(cmd)
+            base_logger.debug(stdout)
 
         if namespace:
             cmd = 'kubectl delete namespaces %s' % namespace
-            logger.debug('executing: %s', cmd)
-            ec, stdout, stderr = utilities.execute(cmd)
-            logger.debug(stdout)
+            base_logger.debug('executing: %s', cmd)
+            ec, stdout, stderr = dask_utils.execute(cmd)
+            base_logger.debug(stdout)
 
     # from k8s submitter
     def read_job_configuration(self, work_spec):
@@ -677,10 +686,10 @@ class DaskSubmitter(PluginBase):
         tmp_log.debug(f'Taking default container image: {container_image}')
         return container_image
 
-    def get_max_walltime(self, this_panda_queue_dict):
+    def get_max_walltime(self, panda_queue_dict):
 
         try:
-            max_time = this_panda_queue_dict['maxtime']
+            max_time = panda_queue_dict['maxtime']
         except IndexError:
             tmp_log.warning(f'Could not retrieve maxtime field for queue {self.queueName}')
             max_time = None
