@@ -410,22 +410,22 @@ class DaskSubmitter(PluginBase):
         service_info = {}
 
         # create unique name space
-        status, stderr = submitter.create_namespace()
+        status, stderr = self.create_namespace()
         if not status:
-            stderr = 'failed to create namespace %s: %s' % (submitter.get_namespace(), stderr)
+            stderr = 'failed to create namespace %s: %s' % (self.get_namespace(), stderr)
             base_logger.warning(stderr)
             cleanup()
             return ERROR_NAMESPACE, {}, stderr
         timing['tnamespace'] = time.time()
-        base_logger.info('created namespace: %s', submitter.get_namespace())
+        base_logger.info('created namespace: %s', self.get_namespace())
 
         # create PVC and PV
         for name in ['pvc', 'pv']:
-            status, stderr = submitter.create_pvcpv(name=name)
+            status, stderr = self.create_pvcpv(name=name)
             if not status:
                 stderr = 'could not create PVC/PV: %s' % stderr
                 base_logger.warning(stderr)
-                cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid())
+                cleanup(namespace=self.get_namespace(), user_id=self.get_userid())
                 exitcode = ERROR_PVPVC
                 break
         timing['tpvcpv'] = time.time()
@@ -439,11 +439,11 @@ class DaskSubmitter(PluginBase):
         services = ['dask-scheduler', 'jupyterlab']
         for service in services:
             _service = service + '-service'
-            ports = submitter.get_ports(_service)
-            stderr = submitter.create_service(_service, ports[0], ports[1])
+            ports = self.get_ports(_service)
+            stderr = self.create_service(_service, ports[0], ports[1])
             if stderr:
                 exitcode = ERROR_CREATESERVICE
-                cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
+                cleanup(namespace=self.get_namespace(), user_id=self.get_userid(), pvc=True, pv=True)
                 break
         timing['tservices'] = time.time()
         if exitcode:
@@ -452,11 +452,11 @@ class DaskSubmitter(PluginBase):
         # start services with load balancers
         for service in services:
             _service = service + '-service'
-            _ip, stderr = submitter.wait_for_service(_service)
+            _ip, stderr = self.wait_for_service(_service)
             if stderr:
                 stderr = 'failed to start load balancer for %s: %s' % (_service, stderr)
                 base_logger.warning(stderr)
-                cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
+                cleanup(namespace=self.get_namespace(), user_id=self.get_userid(), pvc=True, pv=True)
                 exitcode = ERROR_LOADBALANCER
                 break
             if service not in service_info:
@@ -469,11 +469,11 @@ class DaskSubmitter(PluginBase):
 
         # deploy the dask scheduler (the scheduler IP will only be available from within the cluster)
         for service in services:
-            stderr = submitter.deploy_service_pod(service)
+            stderr = self.deploy_service_pod(service)
             if stderr:
                 stderr = 'failed to deploy %s pod: %s' % (service, stderr)
                 base_logger.warning(stderr)
-                cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
+                cleanup(namespace=self.get_namespace(), user_id=self.get_userid(), pvc=True, pv=True)
                 exitcode = ERROR_DEPLOYMENT
                 break
         timing['tdeployments'] = time.time()
@@ -484,11 +484,11 @@ class DaskSubmitter(PluginBase):
         # for the dask scheduler, the internal IP number is needed
         # for jupyterlab, we only need to verify that it started properly
         for service in services:
-            internal_ip, _pod_name, stderr = submitter.get_service_info(service)
+            internal_ip, _pod_name, stderr = self.get_service_info(service)
             if stderr:
                 stderr = '%s pod failed: %s' % (service, stderr)
                 base_logger.warning(stderr)
-                cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
+                cleanup(namespace=self.get_namespace(), user_id=self.get_userid(), pvc=True, pv=True)
                 exitcode = ERROR_PODFAILURE
                 break
             service_info[service]['internal_ip'] = internal_ip
@@ -508,13 +508,13 @@ class DaskSubmitter(PluginBase):
         # status = dask_utils.kubectl_execute(cmd='config use-context', namespace='default')
 
         # deploy the worker pods
-        status, stderr = submitter.deploy_dask_workers(scheduler_ip=service_info['dask-scheduler'].get('internal_ip'),
+        status, stderr = self.deploy_dask_workers(scheduler_ip=service_info['dask-scheduler'].get('internal_ip'),
                                                        scheduler_pod_name=service_info['dask-scheduler'].get('pod_name'),
                                                        jupyter_pod_name=service_info['jupyterlab'].get('pod_name'))
         if not status:
             stderr = 'failed to deploy dask workers: %s' % stderr
             base_logger.warning(stderr)
-            cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
+            cleanup(namespace=self.get_namespace(), user_id=self.get_userid(), pvc=True, pv=True)
             exitcode = ERROR_DASKWORKER
         timing['tdaskworkers'] = time.time()
         if exitcode:
@@ -528,16 +528,16 @@ class DaskSubmitter(PluginBase):
         #######################################
 
         # deploy the pilot pod
-        status, _, stderr = submitter.deploy_pilot(service_info['dask-scheduler-service'].get('internal_ip'))
+        status, _, stderr = self.deploy_pilot(service_info['dask-scheduler-service'].get('internal_ip'))
 
         # time.sleep(30)
-        cmd = 'kubectl logs dask-pilot --namespace=%s' % submitter.get_namespace()
+        cmd = 'kubectl logs dask-pilot --namespace=%s' % self.get_namespace()
         base_logger.debug('executing: %s', cmd)
         ec, stdout, stderr = dask_utils.execute(cmd)
         base_logger.debug(stdout)
 
         if not status:
-            cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
+            cleanup(namespace=self.get_namespace(), user_id=self.get_userid(), pvc=True, pv=True)
             exit(-1)
         base_logger.info('deployed pilot pod')
 
