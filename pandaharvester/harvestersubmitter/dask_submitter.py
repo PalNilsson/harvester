@@ -686,7 +686,7 @@ class DaskSubmitter(PluginBase):
         tmp_log.debug(f'Taking default container image: {container_image}')
         return container_image
 
-    def get_max_walltime(self, panda_queue_dict):
+    def get_maxtime(self, panda_queue_dict):
 
         try:
             max_time = panda_queue_dict['maxtime']
@@ -718,7 +718,6 @@ class DaskSubmitter(PluginBase):
 
             # choose the appropriate proxy
             this_panda_queue_dict = self.panda_queues_dict.get(self.queueName, dict())
-
             is_grandly_unified_queue = self.panda_queues_dict.is_grandly_unified_queue(self.queueName)
             cert = self._choose_proxy(work_spec, is_grandly_unified_queue)
             if not cert:
@@ -727,12 +726,20 @@ class DaskSubmitter(PluginBase):
                 return tmp_return_value
 
             # get the walltime limit
-            max_time = self.get_max_walltime(this_panda_queue_dict)
+            max_time = self.get_maxtime(this_panda_queue_dict)
 
             # not needed: prod_source_label = harvester_queue_config.get_source_label(work_spec.jobType)
 
             # create the scheduler and workers
-            # ..
+
+            # input parameters [to be passed to the script]
+            self._workdir = os.getcwd()  # working directory
+            self._nworkers = 2  # number of dask workers
+            self._interactive_mode = True  # True means interactive jupyterlab session, False means pilot pod runs user payload
+            self._password = 'trustno1'  # jupyterlab password
+            self._userid = ''.join(
+                random.choice(ascii_lowercase) for _ in range(5))  # unique 5-char user id (basically for K8)
+            self._namespace = 'single-user-%s' % self._userid
 
         except Exception as exc:
             tmp_log.error(traceback.format_exc())
