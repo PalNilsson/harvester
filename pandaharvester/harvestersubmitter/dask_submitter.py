@@ -115,8 +115,18 @@ class DaskSubmitter(PluginBase):
         tmp_log.debug(f'Taking default container image: {container_image}')
         return container_image
 
-    def submit_dask_worker(self, work_spec):
-        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='submit_dask_worker')
+    def get_max_walltime(self, this_panda_queue_dict):
+
+        try:
+            max_time = this_panda_queue_dict['maxtime']
+        except IndexError:
+            tmp_log.warning(f'Could not retrieve maxtime field for queue {self.queueName}')
+            max_time = None
+
+        return max_time
+
+    def submit_harvester_worker(self, work_spec):
+        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='submit_harvester_worker')
 
         # get info from harvester queue config
         _queueConfigMapper = QueueConfigMapper()
@@ -133,7 +143,6 @@ class DaskSubmitter(PluginBase):
 
             # decide container image. In pull mode, defaults are provided
             container_image = self.decide_container_image(job_fields, job_pars_parsed)
-
             tmp_log.debug(f'container_image: "{container_image}"; args: "{args}"')
 
             # choose the appropriate proxy
@@ -147,13 +156,9 @@ class DaskSubmitter(PluginBase):
                 return tmp_return_value
 
             # get the walltime limit
-            try:
-                max_time = this_panda_queue_dict['maxtime']
-            except IndexError:
-                tmp_log.warning(f'Could not retrieve maxtime field for queue {self.queueName}')
-                max_time = None
+            max_time = self.get_max_walltime(this_panda_queue_dict)
 
-            prod_source_label = harvester_queue_config.get_source_label(work_spec.jobType)
+            # not needed: prod_source_label = harvester_queue_config.get_source_label(work_spec.jobType)
 
             # create the scheduler and workers
             # ..
@@ -164,7 +169,7 @@ class DaskSubmitter(PluginBase):
             tmp_return_value = (False, err_str)
         else:
             work_spec.batchID = yaml_content['metadata']['name']
-            tmp_log.debug(f'Created worker {work_spec.workerID} with batchID={work_spec.batchID}')
+            tmp_log.debug(f'Created harvester worker {work_spec.workerID} with batchID={work_spec.batchID}')
             tmp_return_value = (True, '')
 
         return tmp_return_value
@@ -182,11 +187,9 @@ class DaskSubmitter(PluginBase):
             return ret_list
 
         with ThreadPoolExecutor(self.nProcesses) as thread_pool:
-            ret_val_list = thread_pool.map(self.submit_dask_worker, workspec_list)
+            ret_val_list = thread_pool.map(self.submit_harvester_worker, workspec_list)
             tmp_log.debug(f'{n_workers} worker(s) submitted')
-
-        ret_list = list(ret_val_list)
 
         tmp_log.debug('done')
 
-        return ret_list
+        return list(ret_val_list)
