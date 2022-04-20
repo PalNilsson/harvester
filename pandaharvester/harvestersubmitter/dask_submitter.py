@@ -14,7 +14,7 @@ from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor
 
 import random
-import sys
+#import sys
 import time
 from string import ascii_lowercase
 
@@ -417,7 +417,7 @@ class DaskSubmitter(PluginBase):
         if not status:
             stderr = 'failed to create namespace %s: %s' % (self.get_namespace(), stderr)
             base_logger.warning(stderr)
-            cleanup()
+            self.cleanup()
             return ERROR_NAMESPACE, {}, stderr
         timing['tnamespace'] = time.time()
         base_logger.info('created namespace: %s', self.get_namespace())
@@ -428,7 +428,7 @@ class DaskSubmitter(PluginBase):
             if not status:
                 stderr = 'could not create PVC/PV: %s' % stderr
                 base_logger.warning(stderr)
-                cleanup(namespace=self.get_namespace(), user_id=self.get_userid())
+                self.cleanup(namespace=self._namespace, user_id=self._userid)
                 exitcode = ERROR_PVPVC
                 break
         timing['tpvcpv'] = time.time()
@@ -446,7 +446,7 @@ class DaskSubmitter(PluginBase):
             stderr = self.create_service(_service, ports[0], ports[1])
             if stderr:
                 exitcode = ERROR_CREATESERVICE
-                cleanup(namespace=self.get_namespace(), user_id=self.get_userid(), pvc=True, pv=True)
+                self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
                 break
         timing['tservices'] = time.time()
         if exitcode:
@@ -459,7 +459,7 @@ class DaskSubmitter(PluginBase):
             if stderr:
                 stderr = 'failed to start load balancer for %s: %s' % (_service, stderr)
                 base_logger.warning(stderr)
-                cleanup(namespace=self.get_namespace(), user_id=self.get_userid(), pvc=True, pv=True)
+                self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
                 exitcode = ERROR_LOADBALANCER
                 break
             if service not in service_info:
@@ -476,7 +476,7 @@ class DaskSubmitter(PluginBase):
             if stderr:
                 stderr = 'failed to deploy %s pod: %s' % (service, stderr)
                 base_logger.warning(stderr)
-                cleanup(namespace=self.get_namespace(), user_id=self.get_userid(), pvc=True, pv=True)
+                self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
                 exitcode = ERROR_DEPLOYMENT
                 break
         timing['tdeployments'] = time.time()
@@ -491,7 +491,7 @@ class DaskSubmitter(PluginBase):
             if stderr:
                 stderr = '%s pod failed: %s' % (service, stderr)
                 base_logger.warning(stderr)
-                cleanup(namespace=self.get_namespace(), user_id=self.get_userid(), pvc=True, pv=True)
+                self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
                 exitcode = ERROR_PODFAILURE
                 break
             service_info[service]['internal_ip'] = internal_ip
@@ -517,7 +517,7 @@ class DaskSubmitter(PluginBase):
         if not status:
             stderr = 'failed to deploy dask workers: %s' % stderr
             base_logger.warning(stderr)
-            cleanup(namespace=self.get_namespace(), user_id=self.get_userid(), pvc=True, pv=True)
+            self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
             exitcode = ERROR_DASKWORKER
         timing['tdaskworkers'] = time.time()
         if exitcode:
@@ -534,13 +534,13 @@ class DaskSubmitter(PluginBase):
         status, _, stderr = self.deploy_pilot(service_info['dask-scheduler-service'].get('internal_ip'))
 
         # time.sleep(30)
-        cmd = 'kubectl logs dask-pilot --namespace=%s' % self.get_namespace()
+        cmd = 'kubectl logs dask-pilot --namespace=%s' % self._namespace
         base_logger.debug('executing: %s', cmd)
         ec, stdout, stderr = dask_utils.execute(cmd)
         base_logger.debug(stdout)
 
         if not status:
-            cleanup(namespace=self.get_namespace(), user_id=self.get_userid(), pvc=True, pv=True)
+            self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
             exit(-1)
         base_logger.info('deployed pilot pod')
 
@@ -740,6 +740,8 @@ class DaskSubmitter(PluginBase):
     def submit_harvester_worker(self, work_spec):
         tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='submit_harvester_worker')
 
+        timing = {'t0': time.time()}
+
         # get info from harvester queue config
         _queueConfigMapper = QueueConfigMapper()
         harvester_queue_config = _queueConfigMapper.get_queue(self.queueName)
@@ -792,6 +794,26 @@ class DaskSubmitter(PluginBase):
             self._userid = ''.join(
                 random.choice(ascii_lowercase) for _ in range(5))  # unique 5-char user id (basically for K8)
             self._namespace = 'single-user-%s' % self._userid
+
+            try:
+                exitcode, service_info, diagnostics = self.install(timing)
+                if exitcode:
+                    exit(-1)
+                if service_info:
+                    info = '\n********************************************************'
+                    info += '\nuser id: %s' % self._userid
+                    info += '\ndask scheduler has external ip %s' % service_info['dask-scheduler'].get('external_ip')
+                    info += '\ndask scheduler has internal ip %s' % service_info['dask-scheduler'].get('internal_ip')
+                    info += '\njupyterlab has external ip %s' % service_info['jupyterlab'].get('external_ip')
+
+                # done, cleanup and exit
+                if self._interactive_mode:
+                    self.create_cleanup_script()
+                else:
+                    self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
+            except Exception as exc:
+                tmp_log.warning('exception caught: %s', exc)
+                self.cleanup(namespace=self._namespace, user_id=self.self._userid, pvc=True, pv=True)
 
         except Exception as exc:
             tmp_log.error(traceback.format_exc())
