@@ -7,6 +7,7 @@
 # - Paul Nilsson, paul.nilsson@cern.ch, 2022
 
 import os
+import json
 import argparse
 import traceback
 from urllib.parse import unquote
@@ -24,7 +25,7 @@ from pandaharvester.harvesterconfig import harvester_config
 from pandaharvester.harvestermisc.info_utils import PandaQueuesDict
 from pandaharvester.harvestercore.queue_config_mapper import QueueConfigMapper
 #from pandaharvester.harvestersubmitter import submitter_common
-import pandaharvester.harvestermisc.dask_utils
+from pandaharvester.harvestermisc import dask_utils
 
 # logger
 base_logger = core_utils.setup_logger('dask_submitter')
@@ -46,6 +47,8 @@ ERROR_LOADBALANCER = 4
 ERROR_DEPLOYMENT = 5
 ERROR_PODFAILURE = 6
 ERROR_DASKWORKER = 7
+ERROR_MKDIR = 8
+ERROR_WRITEFILE = 9
 
 # submitter for Dask
 class DaskSubmitter(PluginBase):
@@ -691,10 +694,48 @@ class DaskSubmitter(PluginBase):
         try:
             max_time = panda_queue_dict['maxtime']
         except IndexError:
+            tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='get_maxtime')
             tmp_log.warning(f'Could not retrieve maxtime field for queue {self.queueName}')
             max_time = None
 
         return max_time
+
+    def place_job_def(self, job_spec):
+        """
+        Create and place the job definition file in the default user area.
+        """
+
+        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='place_job_def')
+
+        exit_code = 0
+        diagnostics = ''
+
+        tmp_log.debug(f'processing job {job_spec.PandaID}')
+        job_spec_dict = job_spec.to_dict()
+        destination_dir = os.path.join(self._mountpath, job_spec.PandaID)
+
+        try:
+            dask_utils.mkdirs(destination_dir)
+        except Exception as exc:
+            diagnostics = f'failed to create directory {destination_dir}: {exc}'
+            tmp_log.error(diagnostics)
+            exit_code = ERROR_MKDIR
+            return exit_code, diagnostics
+
+        filepath = os.path.join(destination_dir, 'pandaJobData.out')
+        json_object = json.dumps(job_spec_dict)
+        try:
+            with open(filepath, "w") as outfile:
+                outfile.write(json_object)
+        except Exception as exc:
+            diagnostics = f'failed to create file {filepath}: {exc}'
+            tmp_log.error(diagnostics)
+            exit_code = ERROR_WRITEFILE
+            return exit_code, diagnostics
+        else:
+            tmp_log.debug(f'wrote file {filepath}')
+
+        return exit_code, diagnostics
 
     def submit_harvester_worker(self, work_spec):
         tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='submit_harvester_worker')
@@ -707,6 +748,17 @@ class DaskSubmitter(PluginBase):
         log_file_name = f'{harvester_config.master.harvester_id}_{work_spec.workerID}.out'
         work_spec.set_log_file('stdout', f'{self.logBaseURL}/{log_file_name}')
 
+        # place the job definition in the shared user area
+        job_spec_list = work_spec.get_jobspec_list()
+        # note there really should only be a single job
+        if len(job_spec_list) > 1:
+            tmp_log.warning(f'can only handle single dask job: found {len(job_spec_list)} jobs!')
+        job_spec = job_spec_list[0]
+        exit_code, diagnostics = self.place_job_def(job_spec)
+        if exit_code:
+            # handle error
+            return
+
         yaml_content = self.k8s_client.read_yaml_file(self.k8s_yaml_file)
         try:
             # read the job configuration (if available, only push model)
@@ -714,7 +766,7 @@ class DaskSubmitter(PluginBase):
 
             # decide container image. In pull mode, defaults are provided
             container_image = self.decide_container_image(job_fields, job_pars_parsed)
-            tmp_log.debug(f'container_image: "{container_image}"; args: "{args}"')
+            tmp_log.debug(f'container_image: "{container_image}"')
 
             # choose the appropriate proxy
             this_panda_queue_dict = self.panda_queues_dict.get(self.queueName, dict())

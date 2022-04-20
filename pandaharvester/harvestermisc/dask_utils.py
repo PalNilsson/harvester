@@ -1026,3 +1026,21 @@ def await_worker_deployment(worker_info, namespace, scheduler_pod_name='', jupyt
 
     return status
 
+def mkdirs(workdir, chmod=0o770):
+    """
+    Create a directory.
+    Perform a chmod if set.
+
+    :param workdir: Full path to the directory to be created
+    :param chmod: chmod code (default 0770) (octal).
+    :raises PilotException: MKDirFailure.
+    :return:
+    """
+
+    try:
+        os.makedirs(workdir)
+        if chmod:
+            os.chmod(workdir, chmod)
+    except Exception as exc:
+        raise exc
+
