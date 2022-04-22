@@ -512,8 +512,8 @@ class DaskSubmitter(PluginBase):
 
         # deploy the worker pods
         status, stderr = self.deploy_dask_workers(scheduler_ip=service_info['dask-scheduler'].get('internal_ip'),
-                                                       scheduler_pod_name=service_info['dask-scheduler'].get('pod_name'),
-                                                       jupyter_pod_name=service_info['jupyterlab'].get('pod_name'))
+                                                  scheduler_pod_name=service_info['dask-scheduler'].get('pod_name'),
+                                                  jupyter_pod_name=service_info['jupyterlab'].get('pod_name'))
         if not status:
             stderr = 'failed to deploy dask workers: %s' % stderr
             base_logger.warning(stderr)
