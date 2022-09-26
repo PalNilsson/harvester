@@ -215,12 +215,15 @@ class DaskSubmitter(PluginBase):
         log_file_name = f'{harvester_config.master.harvester_id}_{work_spec.workerID}.out'
         work_spec.set_log_file('stdout', f'{self.logBaseURL}/{log_file_name}')
 
+        tmp_log.info(f'work_spec={work_spec}')
         # place the job definition in the shared user area
         job_spec_list = work_spec.get_jobspec_list()
         # note there really should only be a single job
         if len(job_spec_list) > 1:
             tmp_log.warning(f'can only handle single dask job: found {len(job_spec_list)} jobs!')
         job_spec = job_spec_list[0]
+        tmp_log.info(f'job_spec={job_spec}')
+
         exit_code, diagnostics = self.place_job_def(job_spec)
         if exit_code:
             # handle error
