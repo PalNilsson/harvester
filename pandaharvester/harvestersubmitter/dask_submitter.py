@@ -61,7 +61,7 @@ class DaskSubmitter(PluginBase):
         self.panda_queues_dict = PandaQueuesDict()
 
         # retrieve the k8s namespace from CRIC
-        namespace = self.panda_queues_dict.get_k8s_namespace(self.queueName)
+        #namespace = self.panda_queues_dict.get_k8s_namespace(self.queueName)
 
         # dask_Client() = stand-alone dask submitter
         # self.dask_client = dask_Client(namespace=namespace, queue_name=self.queueName, config_file=self.dask_config_file)
@@ -202,6 +202,12 @@ class DaskSubmitter(PluginBase):
 
         return exit_code, diagnostics
 
+    def read_yaml_file(self, yaml_file):
+        with open(yaml_file) as f:
+            yaml_content = yaml.load(f, Loader=yaml.FullLoader)
+
+        return yaml_content
+
     def submit_harvester_worker(self, work_spec):
         tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='submit_harvester_worker')
 
@@ -229,7 +235,8 @@ class DaskSubmitter(PluginBase):
             # handle error
             return
 
-        yaml_content = self.k8s_client.read_yaml_file(self.k8s_yaml_file)
+        tmp_log.info(f'k8s_yaml_file={self.k8s_yaml_file}')
+        yaml_content = self.read_yaml_file(self.k8s_yaml_file)
         try:
             # read the job configuration (if available, only push model)
             job_fields, job_pars_parsed = self.read_job_configuration(work_spec)
