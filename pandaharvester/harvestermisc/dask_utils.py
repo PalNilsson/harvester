@@ -1043,4 +1043,6 @@ def mkdirs(workdir, chmod=0o770):
             os.chmod(workdir, chmod)
     except Exception as exc:
         raise exc
+    else:
+        base_logger.info(f'created directory {workdir}')
 
