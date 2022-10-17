@@ -1046,3 +1046,78 @@ def mkdirs(workdir, chmod=0o770):
     else:
         base_logger.info(f'created directory {workdir}')
 
+def to_dict(job_spec):
+    """
+    Create a job spec dictionary out of a JobSpec object.
+
+    :param job_spec: JobSpec object.
+    :return: job spec dictionary.
+    """
+
+    job_spec_dict = {}
+
+#    try:
+#        job_spec_dict['PandaID'] = job_spec.PandaID
+#        job_spec_dict['taskID'] = job_spec.taskID
+#        job_spec_dict['jobsetID'] = job_spec.jobParams['jobsetID']
+#    job_spec_dict[''] = job_spec.
+#    job_spec_dict[''] = job_spec.
+#    job_spec_dict[''] = job_spec.
+#    job_spec_dict[''] = job_spec.
+#    job_spec_dict[''] = job_spec.
+#    job_spec_dict[''] = job_spec.
+#
+#    'logGUID': log_guid,
+#    'cmtConfig': 'x86_64-slc6-gcc48-opt',
+#    'prodDBlocks': 'user.mlassnig:user.mlassnig.pilot.test.single.hits',
+#    'dispatchDBlockTokenForOut': 'NULL,NULL',
+#    'destinationDBlockToken': 'NULL,NULL',
+#    'destinationSE': 'AGLT2_TEST',
+#    'realDatasets': job_name,
+#    'prodUserID': 'no_one',
+#    'GUID': guid,
+#    'realDatasetsIn': 'user.mlassnig:user.mlassnig.pilot.test.single.hits',
+#    'nSent': 0,
+#    'cloud': 'US',
+#    'StatusCode': 0,
+#    'homepackage': 'AtlasProduction/20.1.4.14',
+#    'inFiles': 'HITS.06828093._000096.pool.root.1',
+#    'processingType': 'pilot-ptest',
+#    'ddmEndPointOut': 'UTA_SWT2_DATADISK,UTA_SWT2_DATADISK',
+#    'fsize': '94834717',
+#    'fileDestinationSE': 'AGLT2_TEST,AGLT2_TEST',
+#    'scopeOut': 'panda',
+#    'minRamCount': 0,
+#    'jobDefinitionID': 7932,
+#    'maxWalltime': 'NULL',
+#    'scopeLog': 'panda',
+#    'transformation': 'Reco_tf.py',
+#    'maxDiskCount': 0,
+#    'coreCount': 1,
+#    'prodDBlockToken': 'NULL',
+#    'transferType': 'NULL',
+#    'destinationDblock': job_name,
+#    'dispatchDBlockToken': 'NULL',
+#    'jobPars': '--maxEvents=1 --inputHITSFile HITS.06828093._000096.pool.root.1 --outputRDOFile RDO_%s.root' % job_name,
+#    'attemptNr': 0,
+#    'swRelease': 'Atlas-20.1.4',
+#    'nucleus': 'NULL',
+#    'maxCpuCount': 0,
+#    'outFiles': 'RDO_%s.root,%s.job.log.tgz' % (job_name, job_name),
+#    'currentPriority': 1000,
+#    'scopeIn': 'mc15_13TeV',
+#    'sourceSite': 'NULL',
+#    'dispatchDblock': 'NULL',
+#    'prodSourceLabel': 'ptest',
+#    'checksum': 'ad:5d000974',
+#    'jobName': job_name,
+#    'ddmEndPointIn': 'UTA_SWT2_DATADISK',
+#    'logFile': '%s.job.log.tgz' % job_name}
+
+    try:
+        job_params = job_spec.get_job_params(False)
+        job_spec_dict = {job_spec.PandaID: job_params}
+    except Exception as exc:
+        base_logger.warning(f'failed to create job spec dictionary: {exc}')
+
+    return job_spec_dict

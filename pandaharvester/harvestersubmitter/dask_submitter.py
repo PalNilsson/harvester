@@ -17,6 +17,7 @@ import random
 #import sys
 import time
 from string import ascii_lowercase
+import yaml
 
 from pandaharvester.harvestercore import core_utils
 from pandaharvester.harvestercore.plugin_base import PluginBase
@@ -176,7 +177,8 @@ class DaskSubmitter(PluginBase):
         diagnostics = ''
 
         tmp_log.debug(f'processing job {job_spec.PandaID}')
-        job_spec_dict = job_spec.to_dict()
+        job_spec_dict = dask_utils.to_dict(job_spec)
+        tmp_log.debug(f'job_spec_dict={job_spec_dict}')
         destination_dir = os.path.join(self._mountpath, job_spec.PandaID)
         tmp_log.debug(f'destination_dir={destination_dir}')
 
