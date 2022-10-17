@@ -178,6 +178,7 @@ class DaskSubmitter(PluginBase):
         tmp_log.debug(f'processing job {job_spec.PandaID}')
         job_spec_dict = job_spec.to_dict()
         destination_dir = os.path.join(self._mountpath, job_spec.PandaID)
+        tmp_log.debug(f'destination_dir={destination_dir}')
 
         try:
             dask_utils.mkdirs(destination_dir)
@@ -186,10 +187,13 @@ class DaskSubmitter(PluginBase):
             tmp_log.error(diagnostics)
             exit_code = ERROR_MKDIR
             return exit_code, diagnostics
+        else:
+            tmp_log.debug(f'created destination dir at {destination_dir}')
 
         filepath = os.path.join(destination_dir, 'pandaJobData.out')
         json_object = json.dumps(job_spec_dict)
         try:
+            tmp_log.debug(f'attempting to write json to {filepath}')
             with open(filepath, "w") as outfile:
                 outfile.write(json_object)
         except Exception as exc:
@@ -200,6 +204,7 @@ class DaskSubmitter(PluginBase):
         else:
             tmp_log.debug(f'wrote file {filepath}')
 
+        tmp_log.debug(f'exit_code={exit_code}, diagnostics={diagnostics}')
         return exit_code, diagnostics
 
     def read_yaml_file(self, yaml_file):
@@ -233,6 +238,7 @@ class DaskSubmitter(PluginBase):
         exit_code, diagnostics = self.place_job_def(job_spec)
         if exit_code:
             # handle error
+            tmp_log.debug(f'place_job_def() failed with exit code {exit_code} (aborting)')
             return
 
         tmp_log.info(f'k8s_yaml_file={self.k8s_yaml_file}')
