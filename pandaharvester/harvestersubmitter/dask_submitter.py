@@ -54,6 +54,18 @@ ERROR_WRITEFILE = 9
 # submitter for Dask
 class DaskSubmitter(PluginBase):
 
+    # default values
+    _nworkers = 1
+    _namespace = ''
+    _userid = ''
+    _mountpath = '/mnt/dask'
+    _ispvc = False  # set when PVC is successfully created
+    _ispv = False  # set when PV is successfully created
+    _password = None
+    _interactive_mode = True
+    _workdir = ''
+    _nfs_server = "10.226.152.66"
+
     # constructor
     def __init__(self, **kwarg):
         self.logBaseURL = None
@@ -94,18 +106,6 @@ class DaskSubmitter(PluginBase):
         except AttributeError:
             if os.getenv('PROXY_SECRET_PATH_ANAL'):
                 self.proxySecretPath = os.getenv('PROXY_SECRET_PATH_ANAL')
-
-        #
-        _nworkers = 1
-        _namespace = ''
-        _userid = ''
-        _mountpath = '/mnt/dask'
-        _ispvc = False  # set when PVC is successfully created
-        _ispv = False  # set when PV is successfully created
-        _password = None
-        _interactive_mode = True
-        _workdir = ''
-        _nfs_server = "10.226.152.66"
 
     # from k8s submitter
     def read_job_configuration(self, work_spec):
@@ -179,7 +179,7 @@ class DaskSubmitter(PluginBase):
         tmp_log.debug(f'processing job {job_spec.PandaID}')
         job_spec_dict = dask_utils.to_dict(job_spec)
         tmp_log.debug(f'job_spec_dict={job_spec_dict}')
-        destination_dir = os.path.join(self._mountpath, job_spec.PandaID)
+        destination_dir = os.path.join(self._mountpath, '%s' % job_spec.PandaID)
         tmp_log.debug(f'destination_dir={destination_dir}')
 
         try:
