@@ -58,13 +58,15 @@ class DaskSubmitter(PluginBase):
     _nworkers = 1
     _namespace = ''
     _userid = ''
-    _mountpath = '/mnt/dask'
+    _mountpath = 'nfs-client:/mnt/dask'
     _ispvc = False  # set when PVC is successfully created
     _ispv = False  # set when PV is successfully created
     _password = None
     _interactive_mode = True
     _workdir = ''
     _nfs_server = "10.226.152.66"
+    _project = "gke-dev-311213"
+    _zone = "europe-west1-b"
 
     # constructor
     def __init__(self, **kwarg):
@@ -182,22 +184,32 @@ class DaskSubmitter(PluginBase):
         destination_dir = os.path.join(self._mountpath, '%s' % job_spec.PandaID)
         tmp_log.debug(f'destination_dir={destination_dir}')
 
-        try:
-            dask_utils.mkdirs(destination_dir)
-        except Exception as exc:
-            diagnostics = f'failed to create directory {destination_dir}: {exc}'
-            tmp_log.error(diagnostics)
-            exit_code = ERROR_MKDIR
-            return exit_code, diagnostics
-        else:
-            tmp_log.debug(f'created destination dir at {destination_dir}')
+        # pilot pod will create user space; submitter will create job definition and push it to /mnt/dask
+        # where it will be discovered by the pilot pod (who will know the job id and therefore which job def to pull)
+        # for now, only push the job def to /mnt/dask on the shared file system
 
-        filepath = os.path.join(destination_dir, 'pandaJobData.out')
+#        try:
+#            dask_utils.mkdirs(destination_dir)
+#        except Exception as exc:
+#            diagnostics = f'failed to create directory {destination_dir}: {exc}'
+#            tmp_log.error(diagnostics)
+#            exit_code = ERROR_MKDIR
+#            return exit_code, diagnostics
+#        else:
+#            tmp_log.debug(f'created destination dir at {destination_dir}')
+
+        filename = f'pandaJobData-{job_spec.PandaID}.out'
         json_object = json.dumps(job_spec_dict)
         try:
-            tmp_log.debug(f'attempting to write json to {filepath}')
-            with open(filepath, "w") as outfile:
-                outfile.write(json_object)
+            tmp_log.debug(f'attempting to write json to {filename} on remote FileStore')
+            #with open(filepath, "w") as outfile:
+            #    outfile.write(json_object)
+            cmd = f'gcloud compute scp {filename} {self._mountpath} --project {self._project} --zone {self._project}'
+            exitcode, stdout, stderr = dask_utils.execute(cmd)
+            if stderr:
+                tmp_log.warning('failed:\n%s', stderr)
+            else:
+                tmp_log.debug(stdout)
         except Exception as exc:
             diagnostics = f'failed to create file {filepath}: {exc}'
             tmp_log.error(diagnostics)
