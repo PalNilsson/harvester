@@ -204,10 +204,10 @@ class DaskSubmitter(PluginBase):
             tmp_log.debug(f'attempting to write json to {filename} on remote FileStore')
             #with open(filepath, "w") as outfile:
             #    outfile.write(json_object)
-            cmd = f'gcloud compute scp {filename} {self._mountpath} --project {self._project} --zone {self._project}'
+            cmd = f'gcloud compute scp {filename} {self._mountpath} --project {self._project} --zone {self._zone}'
             exitcode, stdout, stderr = dask_utils.execute(cmd)
             if stderr:
-                tmp_log.warning('failed:\n%s', stderr)
+                tmp_log.warning(f'failed:\n{stderr}')
             else:
                 tmp_log.debug(stdout)
         except Exception as exc:
