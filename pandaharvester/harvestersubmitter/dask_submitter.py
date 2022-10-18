@@ -157,6 +157,24 @@ class DaskSubmitter(PluginBase):
         tmp_log.debug(f'Taking default container image: {container_image}')
         return container_image
 
+    def _choose_proxy(self, workspec, is_grandly_unified_queue):
+        """
+        Choose the proxy based on the job type and whether k8s secrets are enabled
+        """
+        cert = None
+        job_type = workspec.jobType
+
+        if is_grandly_unified_queue and job_type in ('user', 'panda', 'analysis'):
+            if self.proxySecretPathAnalysis:
+                cert = self.proxySecretPathAnalysis
+            elif self.proxySecretPath:
+                cert = self.proxySecretPath
+        else:
+            if self.proxySecretPath:
+                cert = self.proxySecretPath
+
+        return cert
+
     def get_maxtime(self, panda_queue_dict):
 
         try:
@@ -199,12 +217,12 @@ class DaskSubmitter(PluginBase):
 #            tmp_log.debug(f'created destination dir at {destination_dir}')
 
         filename = f'pandaJobData-{job_spec.PandaID}.out'
-        json_object = json.dumps(job_spec_dict)
+        filepath = os.path.join('/tmp', filename)
         try:
-            tmp_log.debug(f'attempting to write json to {filename} on remote FileStore')
-            #with open(filepath, "w") as outfile:
-            #    outfile.write(json_object)
-            cmd = f'gcloud compute scp {filename} {self._mountpath} --project {self._project} --zone {self._zone}'
+            tmp_log.debug(f'attempting to write json to {filepath} on remote FileStore')
+            with open(filepath, 'w') as _file:
+                json.dump(job_spec_dict, _file)
+            cmd = f'pwd; gcloud compute scp {filepath} {self._mountpath} --project {self._project} --zone {self._zone}'
             exitcode, stdout, stderr = dask_utils.execute(cmd)
             if stderr:
                 tmp_log.warning(f'failed:\n{stderr}')
