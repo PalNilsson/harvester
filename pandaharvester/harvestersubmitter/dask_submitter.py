@@ -27,6 +27,7 @@ from pandaharvester.harvestermisc.info_utils import PandaQueuesDict
 from pandaharvester.harvestercore.queue_config_mapper import QueueConfigMapper
 #from pandaharvester.harvestersubmitter import submitter_common
 from pandaharvester.harvestermisc import dask_utils
+from pandaharvester.harvestersubmitter.dask_submitter_base import DaskSubmitterBase
 
 # logger
 base_logger = core_utils.setup_logger('dask_submitter')
@@ -96,18 +97,7 @@ class DaskSubmitter(PluginBase):
                 self.nProcesses = 1
 
         # x509 proxy through k8s secrets: preferred way
-        try:
-            self.proxySecretPath
-        except AttributeError:
-            if os.getenv('PROXY_SECRET_PATH'):
-                self.proxySecretPath = os.getenv('PROXY_SECRET_PATH')
-
-        # analysis x509 proxy through k8s secrets: on GU queues
-        try:
-            self.proxySecretPathAnalysis
-        except AttributeError:
-            if os.getenv('PROXY_SECRET_PATH_ANAL'):
-                self.proxySecretPath = os.getenv('PROXY_SECRET_PATH_ANAL')
+        self.proxySecretPath = os.getenv('PROXY_SECRET_PATH', None)
 
     # from k8s submitter
     def read_job_configuration(self, work_spec):
@@ -164,14 +154,14 @@ class DaskSubmitter(PluginBase):
         cert = None
         job_type = workspec.jobType
 
+        # use same for now..
         if is_grandly_unified_queue and job_type in ('user', 'panda', 'analysis'):
-            if self.proxySecretPathAnalysis:
-                cert = self.proxySecretPathAnalysis
-            elif self.proxySecretPath:
-                cert = self.proxySecretPath
+            cert = self.proxySecretPath
         else:
-            if self.proxySecretPath:
-                cert = self.proxySecretPath
+            cert = self.proxySecretPath
+
+        if not cert:
+            cert = '/cephfs/atlpan/harvester/proxy/x509up_u25606_prod'
 
         return cert
 
@@ -222,7 +212,7 @@ class DaskSubmitter(PluginBase):
             tmp_log.debug(f'attempting to write json to {filepath} on remote FileStore')
             with open(filepath, 'w') as _file:
                 json.dump(job_spec_dict, _file)
-            cmd = f'pwd; gcloud compute scp {filepath} {self._mountpath} --project {self._project} --zone {self._zone}'
+            cmd = f'gcloud compute scp {filepath} {self._mountpath} --project {self._project} --zone {self._zone}'
             exitcode, stdout, stderr = dask_utils.execute(cmd)
             if stderr:
                 tmp_log.warning(f'failed:\n{stderr}')
@@ -275,6 +265,7 @@ class DaskSubmitter(PluginBase):
 
         tmp_log.info(f'k8s_yaml_file={self.k8s_yaml_file}')
         yaml_content = self.read_yaml_file(self.k8s_yaml_file)
+        submitter = None
         try:
             # read the job configuration (if available, only push model)
             job_fields, job_pars_parsed = self.read_job_configuration(work_spec)
@@ -286,6 +277,7 @@ class DaskSubmitter(PluginBase):
             # choose the appropriate proxy
             this_panda_queue_dict = self.panda_queues_dict.get(self.queueName, dict())
             is_grandly_unified_queue = self.panda_queues_dict.is_grandly_unified_queue(self.queueName)
+            tmp_log.debug(f'proxySecretPath={self.proxySecretPath}, PROXY_SECRET_PATH={os.getenv("PROXY_SECRET_PATH", "None")}')
             cert = self._choose_proxy(work_spec, is_grandly_unified_queue)
             if not cert:
                 err_str = 'No proxy specified in proxySecretPath. Not submitted'
@@ -300,16 +292,20 @@ class DaskSubmitter(PluginBase):
             # create the scheduler and workers
 
             # input parameters [to be passed to the script]
-            self._workdir = os.getcwd()  # working directory
-            self._nworkers = 2  # number of dask workers
-            self._interactive_mode = True  # True means interactive jupyterlab session, False means pilot pod runs user payload
-            self._password = 'trustno1'  # jupyterlab password
-            self._userid = ''.join(
-                random.choice(ascii_lowercase) for _ in range(5))  # unique 5-char user id (basically for K8)
-            self._namespace = 'single-user-%s' % self._userid
+            workdir = '/data/atlpan/harvester/workdir'  # working directory
+            nworkers = 2  # number of dask workers
+            interactive_mode = True  # True means interactive jupyterlab session, False means pilot pod runs user payload
+            password = 'trustno1'  # jupyterlab password
+            userid = ''.join(random.choice(ascii_lowercase) for _ in range(5))  # unique 5-char user id (basically for K8)
+            namespace = 'single-user-%s' % self._userid
 
             # instantiate the base dask submitter here
-
+            submitter = DaskSubmitterBase(nworkers=nworkers,
+                                          password=password,
+                                          interactive_mode=interactive_mode,
+                                          workdir=workdir,
+                                          userid=userid,
+                                          namespace=namespace)
         except Exception as exc:
             tmp_log.error(traceback.format_exc())
             err_str = f'Failed to create a JOB; {exc}'
@@ -318,6 +314,29 @@ class DaskSubmitter(PluginBase):
             work_spec.batchID = yaml_content['metadata']['name']
             tmp_log.debug(f'Created harvester worker {work_spec.workerID} with batchID={work_spec.batchID}')
             tmp_return_value = (True, '')
+
+        if submitter:
+            try:
+                exitcode, service_info, diagnostics = submitter.install(timing)
+                if exitcode:
+                    tmp_log.warning(f'failed with exit code={exitcode}, diagnostics={diagnostics}')
+                if service_info:
+                    info = '\n********************************************************'
+                    info += '\nuser id: %s' % userid
+                    info += '\ndask scheduler has external ip %s' % service_info['dask-scheduler'].get('external_ip')
+                    info += '\ndask scheduler has internal ip %s' % service_info['dask-scheduler'].get('internal_ip')
+                    info += '\njupyterlab has external ip %s' % service_info['jupyterlab'].get('external_ip')
+
+                # done, cleanup and exit
+                if interactive_mode:
+                    submitter.create_cleanup_script()
+                else:
+                    submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
+            except Exception as exc:
+                logger.warning('exception caught: %s', exc)
+                submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
+
+            submitter.timing_report(timing, info=info)
 
         return tmp_return_value
 

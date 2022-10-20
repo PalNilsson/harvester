@@ -36,22 +36,22 @@ ERROR_MKDIR = 8
 ERROR_WRITEFILE = 9
 
 # submitter for Dask
-class DaskSubmitter(object):
+class DaskSubmitterBase(object):
 
     # constructor
-    def __init__(self, **kwarg):
+    def __init__(self, **kwargs):
 
         #
-        _nworkers = 1
-        _namespace = ''
-        _userid = ''
+        _nworkers = kwargs.get('nworkers', 1)
+        _namespace = kwargs.get('namespace')
+        _userid = kwargs.get('userid')
         _mountpath = '/mnt/dask'
         _ispvc = False  # set when PVC is successfully created
         _ispv = False  # set when PV is successfully created
-        _password = None
-        _interactive_mode = True
-        _workdir = ''
-        _nfs_server = "10.226.152.66"
+        _password = kwargs.get('password')
+        _interactive_mode = kwargs.get('interactive_mode', True)
+        _workdir = kwargs.get('workdir')
+        _nfs_server = kwargs.get('nfs_server', '10.226.152.66')
 
         _files = {
             'dask-scheduler-service': 'dask-scheduler-service.yaml',
@@ -368,6 +368,10 @@ class DaskSubmitter(object):
             return ERROR_NAMESPACE, {}, stderr
         timing['tnamespace'] = time.time()
         base_logger.info('created namespace: %s', self.get_namespace())
+
+
+        return -1, {}, 'stopping after creating namespace'
+
 
         # create PVC and PV
         for name in ['pvc', 'pv']:
