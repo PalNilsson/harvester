@@ -297,9 +297,10 @@ class DaskSubmitter(PluginBase):
             interactive_mode = True  # True means interactive jupyterlab session, False means pilot pod runs user payload
             password = 'trustno1'  # jupyterlab password
             userid = ''.join(random.choice(ascii_lowercase) for _ in range(5))  # unique 5-char user id (basically for K8)
-            namespace = 'single-user-%s' % self._userid
+            namespace = f'single-user-{userid}'
 
             # instantiate the base dask submitter here
+            tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
             submitter = DaskSubmitterBase(nworkers=nworkers,
                                           password=password,
                                           interactive_mode=interactive_mode,
@@ -317,6 +318,7 @@ class DaskSubmitter(PluginBase):
 
         if submitter:
             try:
+                tmp_log.debug('installing')
                 exitcode, service_info, diagnostics = submitter.install(timing)
                 if exitcode:
                     tmp_log.warning(f'failed with exit code={exitcode}, diagnostics={diagnostics}')

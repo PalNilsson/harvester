@@ -38,22 +38,37 @@ ERROR_WRITEFILE = 9
 # submitter for Dask
 class DaskSubmitterBase(object):
 
+    _nworkers = None
+    _namespace = None
+    _userid = None
+    _mountpath = None
+    _ispvc = None
+    _ispv = None
+    _password = None
+    _interactive_mode = None
+    _workdir = None
+    _nfs_server = None
+    _files = None
+    _images = None
+    _podnames = None
+    _ports = None
+
     # constructor
     def __init__(self, **kwargs):
 
         #
-        _nworkers = kwargs.get('nworkers', 1)
-        _namespace = kwargs.get('namespace')
-        _userid = kwargs.get('userid')
-        _mountpath = '/mnt/dask'
-        _ispvc = False  # set when PVC is successfully created
-        _ispv = False  # set when PV is successfully created
-        _password = kwargs.get('password')
-        _interactive_mode = kwargs.get('interactive_mode', True)
-        _workdir = kwargs.get('workdir')
-        _nfs_server = kwargs.get('nfs_server', '10.226.152.66')
+        self._nworkers = kwargs.get('nworkers', 1)
+        self._namespace = kwargs.get('namespace')
+        self._userid = kwargs.get('userid')
+        self._mountpath = '/mnt/dask'
+        self._ispvc = False  # set when PVC is successfully created
+        self._ispv = False  # set when PV is successfully created
+        self._password = kwargs.get('password')
+        self._interactive_mode = kwargs.get('interactive_mode', True)
+        self._workdir = kwargs.get('workdir')
+        self._nfs_server = kwargs.get('nfs_server', '10.226.152.66')
 
-        _files = {
+        self._files = {
             'dask-scheduler-service': 'dask-scheduler-service.yaml',
             'dask-scheduler': 'dask-scheduler-deployment.yaml',
             'dask-worker': 'dask-worker-deployment-%d.yaml',
@@ -65,14 +80,14 @@ class DaskSubmitterBase(object):
             'pv': 'pv.yaml',
         }
 
-        _images = {
+        self._images = {
             'dask-scheduler': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-scheduler:latest',
             'dask-worker': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker:latest',
             'dask-pilot': 'palnilsson/dask-pilot:latest',
             'jupyterlab': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/datascience-notebook:latest',
         }
 
-        _podnames = {
+        self._podnames = {
             'dask-scheduler-service': 'dask-scheduler',
             'dask-scheduler': 'dask-scheduler',
             'dask-worker': 'dask-worker',
@@ -82,8 +97,8 @@ class DaskSubmitterBase(object):
         }
 
         # { name: [port, targetPort], .. }
-        _ports = {'dask-scheduler-service': [80, 8786],
-                  'jupyterlab-service': [80, 8888]}
+        self._ports = {'dask-scheduler-service': [80, 8786],
+                       'jupyterlab-service': [80, 8888]}
 
     def get_ports(self, servicename):
         """
@@ -125,6 +140,7 @@ class DaskSubmitterBase(object):
         """
 
         namespace_filename = os.path.join(self._workdir, self._files.get('namespace', 'unknown'))
+        base_logger.debug(f'namespace_filename={namespace_filename}, namespace={self._namespace}')
         return dask_utils.create_namespace(self._namespace, namespace_filename)
 
     def create_pvcpv(self, name='pvc'):
