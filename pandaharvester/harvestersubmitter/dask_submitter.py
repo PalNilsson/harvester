@@ -64,7 +64,7 @@ class DaskSubmitter(PluginBase):
     _ispv = False  # set when PV is successfully created
     _password = None
     _interactive_mode = True
-    _workdir = ''
+    _tmpdir = ''
     _nfs_server = "10.226.152.66"
     _project = "gke-dev-311213"
     _zone = "europe-west1-b"
@@ -176,6 +176,36 @@ class DaskSubmitter(PluginBase):
 
         return max_time
 
+    def makedir(self, directory):
+        """
+        Create a local directory. Ignore tmpdir if it already exists.
+
+        :param directory: full path directory (string).
+        :return: exit code (int), diagnostics (string).
+        """
+
+        exit_code = 0
+        diagnostics = ''
+
+        if not os.path.exists(directory):
+            try:
+                dask_utils.mkdirs(directory)
+            except Exception as exc:
+                diagnostics = f'failed to create directory {directory}: {exc}'
+                tmp_log.error(diagnostics)
+                exit_code = ERROR_MKDIR
+            else:
+                tmp_log.debug(f'created destination dir at {directory}')
+        else:
+            if dir == self._tmpdir:
+                pass
+            else:
+                exit_code = ERROR_MKDIR
+                diagnostics = f'directory {directory} already exists'
+                tmp_log.warning(diagnostics)
+
+        return exit_code, diagnostics
+
     def place_job_def(self, job_spec):
         """
         Create and place the job definition file in the default user area.
@@ -188,34 +218,36 @@ class DaskSubmitter(PluginBase):
 
         tmp_log.debug(f'processing job {job_spec.PandaID}')
         job_spec_dict = dask_utils.to_dict(job_spec)
-        tmp_log.debug(f'job_spec_dict={job_spec_dict}')
         destination_dir = os.path.join(self._mountpath, '%s' % job_spec.PandaID)
-        tmp_log.debug(f'destination_dir={destination_dir}')
 
         # pilot pod will create user space; submitter will create job definition and push it to /mnt/dask
         # where it will be discovered by the pilot pod (who will know the job id and therefore which job def to pull)
         # for now, only push the job def to /mnt/dask on the shared file system
 
-#        try:
-#            dask_utils.mkdirs(destination_dir)
-#        except Exception as exc:
-#            diagnostics = f'failed to create directory {destination_dir}: {exc}'
-#            tmp_log.error(diagnostics)
-#            exit_code = ERROR_MKDIR
-#            return exit_code, diagnostics
-#        else:
-#            tmp_log.debug(f'created destination dir at {destination_dir}')
+        # create the job work dir locally, place the job def in it and move it recursively to the remote shared file system
+        # the local directory can be removed once it has been moved to the remote location
+        self._tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
+        local_workdir = os.path.join(self._tmpdir, f'{job_spec.PandaID}')
+        dirs = [self._tmpdir, local_workdir]
+        for directory in dirs:
+            exit_code, diagnostics = self.makedir(directory)
+            if exit_code != 0:
+                return exit_code, diagnostics
 
-        filename = f'pandaJobData-{job_spec.PandaID}.out'
-        filepath = os.path.join('/tmp', filename)
+        filepath = os.path.join(local_workdir, f'pandaJobData.out')
         try:
-            tmp_log.debug(f'attempting to write json to {filepath} on remote FileStore')
+            # tmp_log.debug(f'creating job def in local dir {filepath}')
             with open(filepath, 'w') as _file:
                 json.dump(job_spec_dict, _file)
-            cmd = f'gcloud compute scp {filepath} {self._mountpath} --project {self._project} --zone {self._zone}'
+            tmp_log.debug(f'attempting to copy {local_workdir} to remote FileStore')
+            # only file copy: cmd = f'gcloud compute scp {filepath} {self._mountpath} --project {self._project} --zone {self._zone}'
+            # copy local dir: e.g. gcloud compute scp --recurse /tmp/panda/12345678 nfs-client:/mnt/dask --project "gke-dev-311213" --zone "europe-west1-b"
+            cmd = f'gcloud compute scp --recurse {local_workdir} {self._mountpath} --project {self._project} --zone {self._zone}'
             exitcode, stdout, stderr = dask_utils.execute(cmd)
             if stderr:
-                tmp_log.warning(f'failed:\n{stderr}')
+                exit_code = ERROR_WRITEFILE if exitcode == 0 else exitcode
+                diagnostics = f'failed:\n{stderr}'
+                tmp_log.error(diagnostics)
             else:
                 tmp_log.debug(stdout)
         except Exception as exc:
@@ -226,7 +258,6 @@ class DaskSubmitter(PluginBase):
         else:
             tmp_log.debug(f'wrote file {filepath}')
 
-        tmp_log.debug(f'exit_code={exit_code}, diagnostics={diagnostics}')
         return exit_code, diagnostics
 
     def read_yaml_file(self, yaml_file):
@@ -248,7 +279,6 @@ class DaskSubmitter(PluginBase):
         log_file_name = f'{harvester_config.master.harvester_id}_{work_spec.workerID}.out'
         work_spec.set_log_file('stdout', f'{self.logBaseURL}/{log_file_name}')
 
-        tmp_log.info(f'work_spec={work_spec}')
         # place the job definition in the shared user area
         job_spec_list = work_spec.get_jobspec_list()
         # note there really should only be a single job
@@ -263,7 +293,7 @@ class DaskSubmitter(PluginBase):
             tmp_log.debug(f'place_job_def() failed with exit code {exit_code} (aborting)')
             return
 
-        tmp_log.info(f'k8s_yaml_file={self.k8s_yaml_file}')
+        # k8s_yaml_file=/data/atlpan/k8_configs/job_prp_driver_ssd.yaml
         yaml_content = self.read_yaml_file(self.k8s_yaml_file)
         submitter = None
         try:
@@ -271,13 +301,12 @@ class DaskSubmitter(PluginBase):
             job_fields, job_pars_parsed = self.read_job_configuration(work_spec)
 
             # decide container image. In pull mode, defaults are provided
+            # container_image: "atlasadc/atlas-grid-centos7"
             container_image = self.decide_container_image(job_fields, job_pars_parsed)
-            tmp_log.debug(f'container_image: "{container_image}"')
 
             # choose the appropriate proxy
             this_panda_queue_dict = self.panda_queues_dict.get(self.queueName, dict())
             is_grandly_unified_queue = self.panda_queues_dict.is_grandly_unified_queue(self.queueName)
-            tmp_log.debug(f'proxySecretPath={self.proxySecretPath}, PROXY_SECRET_PATH={os.getenv("PROXY_SECRET_PATH", "None")}')
             cert = self._choose_proxy(work_spec, is_grandly_unified_queue)
             if not cert:
                 err_str = 'No proxy specified in proxySecretPath. Not submitted'
