@@ -197,9 +197,9 @@ class DaskSubmitter(PluginBase):
                 tmp_log.error(diagnostics)
                 exit_code = ERROR_MKDIR
             else:
-                tmp_log.debug(f'created destination dir at {directory}')
+                tmp_log.debug(f'created destination directory at {directory}')
         else:
-            if dir == self._tmpdir:
+            if directory == self._tmpdir:
                 pass
             else:
                 exit_code = ERROR_MKDIR
