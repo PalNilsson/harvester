@@ -184,6 +184,8 @@ class DaskSubmitter(PluginBase):
         :return: exit code (int), diagnostics (string).
         """
 
+        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='mkdir')
+
         exit_code = 0
         diagnostics = ''
 
