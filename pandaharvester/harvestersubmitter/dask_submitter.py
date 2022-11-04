@@ -338,7 +338,30 @@ class DaskSubmitter(PluginBase):
                                           workdir=workdir,
                                           userid=userid,
                                           namespace=namespace)
+            if submitter:
+                exitcode, service_info, diagnostics = submitter.install(timing)
+                if exitcode:
+                    tmp_log.warning(f'failed with exit code={exitcode}, diagnostics={diagnostics}')
+                if service_info:
+                    info = '\n********************************************************'
+                    info += '\nuser id: %s' % userid
+                    info += '\ndask scheduler has external ip %s' % service_info['dask-scheduler'].get(
+                        'external_ip')
+                    info += '\ndask scheduler has internal ip %s' % service_info['dask-scheduler'].get(
+                        'internal_ip')
+                    info += '\njupyterlab has external ip %s' % service_info['jupyterlab'].get('external_ip')
+                    tmp_log.info(info)
+
+                # done, cleanup and exit
+                if interactive_mode:
+                    submitter.create_cleanup_script()
+                else:
+                    submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
+                submitter.timing_report(timing, info=info)
+
         except Exception as exc:
+            if submitter:
+                submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
             tmp_log.error(traceback.format_exc())
             err_str = f'Failed to create a JOB; {exc}'
             tmp_return_value = (False, err_str)
@@ -346,30 +369,6 @@ class DaskSubmitter(PluginBase):
             work_spec.batchID = yaml_content['metadata']['name']
             tmp_log.debug(f'Created harvester worker {work_spec.workerID} with batchID={work_spec.batchID}')
             tmp_return_value = (True, '')
-
-        if submitter:
-            try:
-                tmp_log.debug('installing')
-                exitcode, service_info, diagnostics = submitter.install(timing)
-                if exitcode:
-                    tmp_log.warning(f'failed with exit code={exitcode}, diagnostics={diagnostics}')
-                if service_info:
-                    info = '\n********************************************************'
-                    info += '\nuser id: %s' % userid
-                    info += '\ndask scheduler has external ip %s' % service_info['dask-scheduler'].get('external_ip')
-                    info += '\ndask scheduler has internal ip %s' % service_info['dask-scheduler'].get('internal_ip')
-                    info += '\njupyterlab has external ip %s' % service_info['jupyterlab'].get('external_ip')
-
-                # done, cleanup and exit
-                if interactive_mode:
-                    submitter.create_cleanup_script()
-                else:
-                    submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
-            except Exception as exc:
-                logger.warning('exception caught: %s', exc)
-                submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
-
-            submitter.timing_report(timing, info=info)
 
         return tmp_return_value
 
