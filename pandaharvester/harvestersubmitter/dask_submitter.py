@@ -226,7 +226,7 @@ class DaskSubmitter(PluginBase):
         exit_code = 0
         diagnostics = ''
 
-        tmp_log.debug(f'processing job {job_spec.PandaID}')
+        tmp_log.debug(f'processing job {job_spec.PandaID} (create local and remote work directories)')
         job_spec_dict = dask_utils.to_dict(job_spec)
 
         # pilot pod will create user space; submitter will create job definition and push it to /mnt/dask
@@ -267,11 +267,11 @@ class DaskSubmitter(PluginBase):
             return exit_code, diagnostics
         else:
             # store the remote directory path for later removal (return error code in case of failure)
-            return self.store_remote_directory(job_spec.PandaID)
+            return self.store_remote_directory_path(job_spec.PandaID)
 
         return exit_code, diagnostics
 
-    def store_remote_directory(self, pandaid):
+    def store_remote_directory_path(self, pandaid):
         """
         Extract and store the path to the remote directory.
 
@@ -355,7 +355,7 @@ class DaskSubmitter(PluginBase):
         tmp_log.debug(f'job_spec={job_spec}')
 
         # create the job definition both locally and remotely
-        # note: the remote directory will have to be removed at some point
+        # note: the remote directory (self._remote_workdir) will have to be removed at some point
         exit_code, diagnostics = self.place_job_def(job_spec)
         # always remove the local work dir immediately
         if self._local_workdir and os.path.exists(self._local_workdir):
