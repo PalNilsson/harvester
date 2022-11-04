@@ -266,17 +266,33 @@ class DaskSubmitter(PluginBase):
             exit_code = ERROR_WRITEFILE
             return exit_code, diagnostics
         else:
-            # store the remote directory path for later removal
-            pattern = r'[A-Za-z\-]+\:(.+)'
-            found = re.findall(pattern, self._mountpath)
-            if found:
-                self._remote_workdir = os.path.join(found[0], f'{job_spec.PandaID}')
-                tmp_log.debug(f'remote workdir={self._remote_workdir}')
-            else:
-                diagnostics = f'failed to set _remote_workdir from pattern={pattern}, _mountpath={self._mountpath}, PandaID={job_spec.PandaID}'
-                tmp_log.error(diagnostics)
-                exit_code = ERROR_REMOTEDIR
-                return exit_code, diagnostics
+            # store the remote directory path for later removal (return error code in case of failure)
+            return self.store_remote_directory(job_spec.PandaID)
+
+        return exit_code, diagnostics
+
+    def store_remote_directory(self, pandaid):
+        """
+        Extract and store the path to the remote directory.
+
+        :param pandaid: PanDA id (int).
+        :return: exit code (int), diagnostics (string).
+        """
+
+        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='store_remote_directory')
+        exit_code = 0
+        diagnostics = ''
+
+        pattern = r'[A-Za-z\-]+\:(.+)'
+        found = re.findall(pattern, self._mountpath)
+        if found:
+            # set the full path to the remote directory - this will later be sent to the remote-cleanup pod
+            self._remote_workdir = os.path.join(found[0], f'{pandaid}')
+            tmp_log.debug(f'remote workdir={self._remote_workdir}')
+        else:
+            diagnostics = f'failed to set _remote_workdir from pattern={pattern}, _mountpath={self._mountpath}, PandaID={pandaid}'
+            tmp_log.error(diagnostics)
+            exit_code = ERROR_REMOTEDIR
 
         return exit_code, diagnostics
 
