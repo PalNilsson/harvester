@@ -263,15 +263,29 @@ class DaskSubmitter(PluginBase):
         return exit_code, diagnostics
 
     def read_yaml_file(self, yaml_file):
+        """
+        Read the contents of the given yaml file
+
+        :param yaml_file: yaml file name (string).
+        :return: yaml content (string).
+        """
+
         with open(yaml_file) as f:
             yaml_content = yaml.load(f, Loader=yaml.FullLoader)
 
         return yaml_content
 
     def submit_harvester_worker(self, work_spec):
-        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='submit_harvester_worker')
+        """
+        Submit the harvester worker.
 
+        :param work_spec: work spec object.
+        :return:
+        """
+
+        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='submit_harvester_worker')
         timing = {'t0': time.time()}
+        tmp_return_value = (False, 'error diagnostics not set')
 
         # get info from harvester queue config
         _queueConfigMapper = QueueConfigMapper()
@@ -287,13 +301,14 @@ class DaskSubmitter(PluginBase):
         if len(job_spec_list) > 1:
             tmp_log.warning(f'can only handle single dask job: found {len(job_spec_list)} jobs!')
         job_spec = job_spec_list[0]
-        tmp_log.info(f'job_spec={job_spec}')
+        tmp_log.debug(f'job_spec={job_spec}')
 
         exit_code, diagnostics = self.place_job_def(job_spec)
         if exit_code:
             # handle error
-            tmp_log.debug(f'place_job_def() failed with exit code {exit_code} (aborting)')
-            return
+            err_str = f'place_job_def() failed with exit code {exit_code} (aborting)'
+            tmp_log.warning(err_str)
+            return (False, err_str)
 
         # k8s_yaml_file=/data/atlpan/k8_configs/job_prp_driver_ssd.yaml
         yaml_content = self.read_yaml_file(self.k8s_yaml_file)
@@ -312,8 +327,8 @@ class DaskSubmitter(PluginBase):
             cert = self._choose_proxy(work_spec, is_grandly_unified_queue)
             if not cert:
                 err_str = 'No proxy specified in proxySecretPath. Not submitted'
-                tmp_return_value = (False, err_str)
-                return tmp_return_value
+                tmp_log.warning(err_str)
+                return (False, err_str)
 
             # get the walltime limit
             max_time = self.get_maxtime(this_panda_queue_dict)
@@ -339,10 +354,14 @@ class DaskSubmitter(PluginBase):
                                           userid=userid,
                                           namespace=namespace)
             if submitter:
+                info = 'not set yet'
                 exitcode, service_info, diagnostics = submitter.install(timing)
                 if exitcode:
-                    tmp_log.warning(f'failed with exit code={exitcode}, diagnostics={diagnostics}')
-                if service_info:
+                    err_str = f'failed with exit code={exitcode}, diagnostics={diagnostics}'
+                    tmp_log.warning(err_str)
+                    tmp_return_value = (False, err_str)
+                elif service_info:
+                    # IP numbers should now be known
                     info = '\n********************************************************'
                     info += '\nuser id: %s' % userid
                     info += '\ndask scheduler has external ip %s' % service_info['dask-scheduler'].get(
@@ -352,13 +371,21 @@ class DaskSubmitter(PluginBase):
                     info += '\njupyterlab has external ip %s' % service_info['jupyterlab'].get('external_ip')
                     tmp_log.info(info)
 
+                    # communicate IP numbers to ... ???
+                    # ..
+
                 # done, cleanup and exit
                 if interactive_mode:
+                    # create the clean-up script
                     submitter.create_cleanup_script()
                 else:
+                    # pilot pod should be done - clean-up everything
                     submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
                 submitter.timing_report(timing, info=info)
-
+            else:
+                err_str = 'DaskSubmitterBase did not complete install()'
+                tmp_log.warning(err_str)
+                tmp_return_value = (False, err_str)
         except Exception as exc:
             if submitter:
                 submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
