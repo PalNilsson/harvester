@@ -238,7 +238,7 @@ class DaskSubmitter(PluginBase):
 
         filepath = os.path.join(local_workdir, f'pandaJobData.out')
         try:
-            # tmp_log.debug(f'creating job def in local dir {filepath}')
+            # create job def in local dir - to be moved to remove location
             with open(filepath, 'w') as _file:
                 json.dump(job_spec_dict, _file)
             tmp_log.debug(f'attempting to copy {local_workdir} to remote FileStore')
@@ -312,6 +312,12 @@ class DaskSubmitter(PluginBase):
 
         # k8s_yaml_file=/data/atlpan/k8_configs/job_prp_driver_ssd.yaml
         yaml_content = self.read_yaml_file(self.k8s_yaml_file)
+        if not yaml_content:
+            # handle error
+            err_str = f'failed to read yaml file {self.k8s_yaml_file}'
+            tmp_log.warning(err_str)
+            return (False, err_str)
+
         submitter = None
         try:
             # read the job configuration (if available, only push model)
