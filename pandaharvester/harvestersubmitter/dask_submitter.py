@@ -68,6 +68,7 @@ class DaskSubmitter(PluginBase):
     _nfs_server = "10.226.152.66"
     _project = "gke-dev-311213"
     _zone = "europe-west1-b"
+    _local_workdir = ''
 
     # constructor
     def __init__(self, **kwarg):
@@ -211,6 +212,10 @@ class DaskSubmitter(PluginBase):
     def place_job_def(self, job_spec):
         """
         Create and place the job definition file in the default user area.
+        If self._local_workdir exists after this function has finished, it will be removed as it is no longer needed.
+
+        :param job_spec: job spec object.
+        :return: exit code (int), diagnostics (string).
         """
 
         tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='place_job_def')
@@ -220,7 +225,6 @@ class DaskSubmitter(PluginBase):
 
         tmp_log.debug(f'processing job {job_spec.PandaID}')
         job_spec_dict = dask_utils.to_dict(job_spec)
-        destination_dir = os.path.join(self._mountpath, '%s' % job_spec.PandaID)
 
         # pilot pod will create user space; submitter will create job definition and push it to /mnt/dask
         # where it will be discovered by the pilot pod (who will know the job id and therefore which job def to pull)
@@ -229,22 +233,22 @@ class DaskSubmitter(PluginBase):
         # create the job work dir locally, place the job def in it and move it recursively to the remote shared file system
         # the local directory can be removed once it has been moved to the remote location
         self._tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
-        local_workdir = os.path.join(self._tmpdir, f'{job_spec.PandaID}')
-        dirs = [self._tmpdir, local_workdir]
+        self._local_workdir = os.path.join(self._tmpdir, f'{job_spec.PandaID}')
+        dirs = [self._tmpdir, self._local_workdir]
         for directory in dirs:
             exit_code, diagnostics = self.makedir(directory)
             if exit_code != 0:
                 return exit_code, diagnostics
 
-        filepath = os.path.join(local_workdir, f'pandaJobData.out')
+        filepath = os.path.join(self._local_workdir, f'pandaJobData.out')
         try:
             # create job def in local dir - to be moved to remove location
             with open(filepath, 'w') as _file:
                 json.dump(job_spec_dict, _file)
-            tmp_log.debug(f'attempting to copy {local_workdir} to remote FileStore')
+            tmp_log.debug(f'attempting to copy {self._local_workdir} to remote FileStore')
             # only file copy: cmd = f'gcloud compute scp {filepath} {self._mountpath} --project {self._project} --zone {self._zone}'
             # copy local dir: e.g. gcloud compute scp --recurse /tmp/panda/12345678 nfs-client:/mnt/dask --project "gke-dev-311213" --zone "europe-west1-b"
-            cmd = f'gcloud compute scp --recurse {local_workdir} {self._mountpath} --project {self._project} --zone {self._zone}'
+            cmd = f'gcloud compute scp --recurse {self._local_workdir} {self._mountpath} --project {self._project} --zone {self._zone}'
             exitcode, stdout, stderr = dask_utils.execute(cmd)
             if stderr:
                 exit_code = ERROR_WRITEFILE if exitcode == 0 else exitcode
@@ -275,6 +279,23 @@ class DaskSubmitter(PluginBase):
 
         return yaml_content
 
+    def remove_local_dir(self, directory):
+        """
+        Remove the given local directory.
+
+        :param directory: directory name (string).
+        :return:
+        """
+
+        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='remove_local_dir')
+
+        try:
+            os.rmdir(directory)
+        except OSError as exc:
+            tmp_log.warning(exc)
+        else:
+            tmp_log.info(f'removed local directory {directory}')
+
     def submit_harvester_worker(self, work_spec):
         """
         Submit the harvester worker.
@@ -303,7 +324,12 @@ class DaskSubmitter(PluginBase):
         job_spec = job_spec_list[0]
         tmp_log.debug(f'job_spec={job_spec}')
 
+        # create the job definition both locally and remotely
+        # note: the remote directory will have to be removed at some point
         exit_code, diagnostics = self.place_job_def(job_spec)
+        # always remove the local work dir immediately
+        if self._local_workdir and os.path.exists(self._local_workdir):
+            self.remove_local_dir(self._local_workdir)
         if exit_code:
             # handle error
             err_str = f'place_job_def() failed with exit code {exit_code} (aborting)'
