@@ -7,6 +7,7 @@
 # - Paul Nilsson, paul.nilsson@cern.ch, 2022
 
 import os
+import re
 import json
 import argparse
 import traceback
@@ -51,6 +52,7 @@ ERROR_PODFAILURE = 6
 ERROR_DASKWORKER = 7
 ERROR_MKDIR = 8
 ERROR_WRITEFILE = 9
+ERROR_REMOTEDIR = 10
 
 # submitter for Dask
 class DaskSubmitter(PluginBase):
@@ -59,7 +61,6 @@ class DaskSubmitter(PluginBase):
     _nworkers = 1
     _namespace = ''
     _userid = ''
-    _mountpath = 'nfs-client:/mnt/dask'
     _ispvc = False  # set when PVC is successfully created
     _ispv = False  # set when PV is successfully created
     _password = None
@@ -69,6 +70,8 @@ class DaskSubmitter(PluginBase):
     _project = "gke-dev-311213"
     _zone = "europe-west1-b"
     _local_workdir = ''
+    _remote_workdir = ''  # only set this once the remote workdir has been created
+    _mountpath = 'nfs-client:/mnt/dask'
 
     # constructor
     def __init__(self, **kwarg):
@@ -245,6 +248,7 @@ class DaskSubmitter(PluginBase):
             # create job def in local dir - to be moved to remove location
             with open(filepath, 'w') as _file:
                 json.dump(job_spec_dict, _file)
+            tmp_log.debug(f'wrote file {filepath}')
             tmp_log.debug(f'attempting to copy {self._local_workdir} to remote FileStore')
             # only file copy: cmd = f'gcloud compute scp {filepath} {self._mountpath} --project {self._project} --zone {self._zone}'
             # copy local dir: e.g. gcloud compute scp --recurse /tmp/panda/12345678 nfs-client:/mnt/dask --project "gke-dev-311213" --zone "europe-west1-b"
@@ -262,7 +266,17 @@ class DaskSubmitter(PluginBase):
             exit_code = ERROR_WRITEFILE
             return exit_code, diagnostics
         else:
-            tmp_log.debug(f'wrote file {filepath}')
+            # store the remote directory path for later removal
+            pattern = r'[A-Za-z\-]+\:(.+)'
+            found = re.findall(pattern, self._mountpath)
+            if found:
+                self._remote_workdir = os.path.join(found[0], f'{job_spec.PandaID}')
+                tmp_log.debug(f'remote workdir={self._remote_workdir}')
+            else:
+                diagnostics = f'failed to set _remote_workdir from pattern={pattern}, _mountpath={self._mountpath}, PandaID={job_spec.PandaID}'
+                tmp_log.error(diagnostics)
+                exit_code = ERROR_REMOTEDIR
+                return exit_code, diagnostics
 
         return exit_code, diagnostics
 
