@@ -35,7 +35,7 @@ ERROR_DASKWORKER = 7
 ERROR_MKDIR = 8
 ERROR_WRITEFILE = 9
 
-# submitter for Dask
+# submitter for Dask - one instance per panda job
 class DaskSubmitterBase(object):
 
     _nworkers = None
@@ -52,6 +52,7 @@ class DaskSubmitterBase(object):
     _images = None
     _podnames = None
     _ports = None
+    _pandaid = None
 
     # constructor
     def __init__(self, **kwargs):
@@ -67,11 +68,12 @@ class DaskSubmitterBase(object):
         self._interactive_mode = kwargs.get('interactive_mode', True)
         self._workdir = kwargs.get('workdir')
         self._nfs_server = kwargs.get('nfs_server', '10.226.152.66')
+        self._pandaid = kwargs.get('pandaid')
 
         self._files = {
             'dask-scheduler-service': 'dask-scheduler-service.yaml',
             'dask-scheduler': 'dask-scheduler-deployment.yaml',
-            'dask-worker': 'dask-worker-deployment-%d.yaml',
+            'dask-worker': 'dask-worker-deployment.yaml',
             'dask-pilot': 'dask-pilot-deployment.yaml',
             'jupyterlab-service': 'jupyterlab-service.yaml',
             'jupyterlab': 'jupyterlab-deployment.yaml',
@@ -280,7 +282,7 @@ class DaskSubmitterBase(object):
                                         namespace=self._namespace,
                                         user_id=self._userid,
                                         scheduler_ip=scheduler_ip,
-                                        panda_id='1234567890')
+                                        panda_id=self._pandaid)
         status = dask_utils.write_file(path, yaml, mute=False)
         if not status:
             stderr = 'cannot continue since pilot yaml file could not be created'

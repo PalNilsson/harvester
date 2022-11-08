@@ -414,7 +414,8 @@ class DaskSubmitter(PluginBase):
                                           interactive_mode=interactive_mode,
                                           workdir=harvester_workdir,
                                           userid=userid,
-                                          namespace=namespace)
+                                          namespace=namespace,
+                                          pandaid=job_spec.PandaID)
             if submitter:
                 info = 'not set yet'
                 exitcode, service_info, diagnostics = submitter.install(timing)
