@@ -400,7 +400,7 @@ class DaskSubmitter(PluginBase):
             # create the scheduler and workers
 
             # input parameters [to be passed to the script]
-            workdir = '/data/atlpan/harvester/workdir'  # working directory
+            harvester_workdir = os.environ.get('HARVESTER_WORKDIR', '/data/atlpan/harvester/workdir')
             nworkers = 2  # number of dask workers
             interactive_mode = True  # True means interactive jupyterlab session, False means pilot pod runs user payload
             password = 'trustno1'  # jupyterlab password
@@ -412,7 +412,7 @@ class DaskSubmitter(PluginBase):
             submitter = DaskSubmitterBase(nworkers=nworkers,
                                           password=password,
                                           interactive_mode=interactive_mode,
-                                          workdir=workdir,
+                                          workdir=harvester_workdir,
                                           userid=userid,
                                           namespace=namespace)
             if submitter:
