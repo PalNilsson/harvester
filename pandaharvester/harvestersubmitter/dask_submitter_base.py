@@ -78,6 +78,7 @@ class DaskSubmitterBase(object):
             'namespace': 'namespace.json',
             'pvc': 'pvc.yaml',
             'pv': 'pv.yaml',
+            'remote-cleanup': 'remote-cleanup.yaml',
         }
 
         self._images = {
@@ -85,6 +86,7 @@ class DaskSubmitterBase(object):
             'dask-worker': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker:latest',
             'dask-pilot': 'palnilsson/dask-pilot:latest',
             'jupyterlab': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/datascience-notebook:latest',
+            'remote-cleanup': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/remote-cleanup:latest',
         }
 
         self._podnames = {
@@ -94,6 +96,7 @@ class DaskSubmitterBase(object):
             'dask-pilot': 'dask-pilot',
             'jupyterlab-service': 'jupyterlab',
             'jupyterlab': 'jupyterlab',
+            'remote-cleanup': 'remote-cleanup',
         }
 
         # { name: [port, targetPort], .. }

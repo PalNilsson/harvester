@@ -753,6 +753,67 @@ spec:
     return yaml
 
 
+def get_remote_cleanup_yaml(image_source=None, nfs_path=None, namespace=None, workdir=None, user_id=None):
+    """
+    Return the yaml for the remote clean-up pod with the given image and the path to the shared file system.
+
+    :param image_source: image source (string).
+    :param nfs_path: NFS path (string).
+    :param namespace: namespace (string).
+    :param workdir: working directory (string).
+    :param user_id: user id (string).
+    :return: yaml (string).
+    """
+
+    if not image_source:
+        base_logger.warning('image source must be set')
+        return ""
+    if not nfs_path:
+        base_logger.warning('nfs path must be set')
+        return ""
+    if not namespace:
+        base_logger.warning('namespace must be set')
+        return ""
+    if not workdir:
+        base_logger.warning('workdir must be set')
+        return ""
+    if not user_id:
+        base_logger.warning('user id must be set')
+        return ""
+
+    yaml = """
+apiVersion: v1
+kind: Pod
+metadata:
+  name: remote-cleanup
+  namespace: CHANGE_NAMESPACE
+spec:
+  restartPolicy: Never
+  containers:
+  - name: remote-cleanup
+    image: CHANGE_IMAGE_SOURCE
+    env:
+    - name: WORKDIR
+      value: "CHANGE_WORKDIR"
+    volumeMounts:
+    - mountPath: CHANGE_NFS_PATH
+      name: fileserver-CHANGE_USERID
+  volumes:
+  - name: fileserver-CHANGE_USERID
+    persistentVolumeClaim:
+      claimName: fileserver-claim
+      readOnly: false
+"""
+
+    yaml = yaml.replace('CHANGE_IMAGE_SOURCE', image_source)
+    yaml = yaml.replace('CHANGE_NFS_PATH', nfs_path)
+    yaml = yaml.replace('CHANGE_WORKDIR', workdir)
+    yaml = yaml.replace('CHANGE_NAMESPACE', namespace)
+    yaml = yaml.replace('CHANGE_USERID', user_id)
+
+    return yaml
+
+
 def get_pilot_yaml(image_source=None, nfs_path=None, namespace=None, scheduler_ip=None, user_id=None, panda_id=None):
     """
     Return the yaml for the Pilot X for a given image and the path to the shared file system.
