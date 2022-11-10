@@ -44,8 +44,10 @@ class DaskSubmitterBase(object):
     _mountpath = None
     _ispvc = None
     _ispv = None
+    _username = None
     _password = None
     _interactive_mode = None
+    _session_type = None
     _workdir = None
     _nfs_server = None
     _files = None
@@ -57,30 +59,31 @@ class DaskSubmitterBase(object):
     # constructor
     def __init__(self, **kwargs):
 
-        #
         self._nworkers = kwargs.get('nworkers', 1)
         self._namespace = kwargs.get('namespace')
         self._userid = kwargs.get('userid')
         self._mountpath = '/mnt/dask'
         self._ispvc = False  # set when PVC is successfully created
         self._ispv = False  # set when PV is successfully created
+        self._username = kwargs.get('username')
         self._password = kwargs.get('password')
         self._interactive_mode = kwargs.get('interactive_mode', True)
+        self._session_type = kwargs.get('session_type', 'jupyterlab')
         self._workdir = kwargs.get('workdir')
         self._nfs_server = kwargs.get('nfs_server', '10.226.152.66')
         self._pandaid = kwargs.get('pandaid')
 
-        self._files = {
-            'dask-scheduler-service': 'dask-scheduler-service.yaml',
-            'dask-scheduler': 'dask-scheduler-deployment.yaml',
-            'dask-worker': 'dask-worker-deployment.yaml',
-            'dask-pilot': 'dask-pilot-deployment.yaml',
-            'jupyterlab-service': 'jupyterlab-service.yaml',
-            'jupyterlab': 'jupyterlab-deployment.yaml',
-            'namespace': 'namespace.json',
-            'pvc': 'pvc.yaml',
-            'pv': 'pv.yaml',
-            'remote-cleanup': 'remote-cleanup.yaml',
+        self._files = {  # pandaid will be added (amd dask worker in the case of 'dask-worker')
+            'dask-scheduler-service': '%d-dask-scheduler-service.yaml',
+            'dask-scheduler': '%d-dask-scheduler-deployment.yaml',
+            'dask-worker': '%d-dask-worker-deployment-%d.yaml',
+            'dask-pilot': '%d-dask-pilot-deployment.yaml',
+            'jupyterlab-service': '%d-jupyterlab-service.yaml',
+            'jupyterlab': '%d-jupyterlab-deployment.yaml',
+            'namespace': '%d-namespace.json',
+            'pvc': '%d-pvc.yaml',
+            'pv': '%d-pv.yaml',
+            'remote-cleanup': '%d-remote-cleanup.yaml',
         }
 
         self._images = {
@@ -144,7 +147,7 @@ class DaskSubmitterBase(object):
         :return: True if successful, stderr (Boolean, string).
         """
 
-        namespace_filename = os.path.join(self._workdir, self._files.get('namespace', 'unknown'))
+        namespace_filename = os.path.join(self._workdir, self._files.get('namespace') % self._pandaid)
         base_logger.debug(f'namespace_filename={namespace_filename}, namespace={self._namespace}')
         return dask_utils.create_namespace(self._namespace, namespace_filename)
 
@@ -162,7 +165,7 @@ class DaskSubmitterBase(object):
             return False, stderr
 
         # create the yaml file
-        path = os.path.join(os.path.join(self._workdir, self._files.get(name, 'unknown')))
+        path = os.path.join(os.path.join(self._workdir, self._files.get(name) % self._pandaid))
         func = dask_utils.get_pvc_yaml if name == 'pvc' else dask_utils.get_pv_yaml
         yaml = func(namespace=self._namespace, user_id=self._userid, nfs_server=self._nfs_server)
         status = dask_utils.write_file(path, yaml)
@@ -186,7 +189,7 @@ class DaskSubmitterBase(object):
         :return: stderr (string).
         """
 
-        fname = self._files.get(name, 'unknown')
+        fname = self._files.get(name % self._pandaid)
         if fname == 'unknown':
             stderr = 'unknown file name for %s yaml' % name
             base_logger.warning(stderr)
@@ -242,13 +245,14 @@ class DaskSubmitterBase(object):
         """
 
         worker_info, stderr = dask_utils.deploy_workers(scheduler_ip,
-                                                       self._nworkers,
-                                                       self._files,
-                                                       self._namespace,
-                                                       self._userid,
-                                                       self._images.get('dask-worker', 'unknown'),
-                                                       self._mountpath,
-                                                       self._workdir)
+                                                        self._nworkers,
+                                                        self._files,
+                                                        self._namespace,
+                                                        self._userid,
+                                                        self._images.get('dask-worker', 'unknown'),
+                                                        self._mountpath,
+                                                        self._workdir,
+                                                        self._pandaid)
         if not worker_info:
             base_logger.warning('failed to deploy workers: %s', stderr)
             return False, stderr
@@ -276,7 +280,7 @@ class DaskSubmitterBase(object):
         """
 
         # create pilot yaml
-        path = os.path.join(self._workdir, self._files.get('dask-pilot', 'unknown'))
+        path = os.path.join(self._workdir, self._files.get('dask-pilot') % self._pandaid)
         yaml = dask_utils.get_pilot_yaml(image_source=self._images.get('dask-pilot', 'unknown'),
                                         nfs_path=self._mountpath,
                                         namespace=self._namespace,
@@ -332,7 +336,7 @@ class DaskSubmitterBase(object):
 
         _stderr = ''
 
-        path = os.path.join(self._workdir, self._files.get(servicename, 'unknown'))
+        path = os.path.join(self._workdir, self._files.get(servicename) % self._pandaid)
         yaml = dask_utils.get_service_yaml(namespace=self._namespace,
                                           name=self._podnames.get(servicename, 'unknown'),
                                           port=port,

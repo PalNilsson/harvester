@@ -330,6 +330,8 @@ class DaskSubmitter(PluginBase):
         """
         Submit the harvester worker.
 
+        Note: there is one base dask submitter per panda job.
+
         :param work_spec: work spec object.
         :return:
         """
@@ -395,23 +397,33 @@ class DaskSubmitter(PluginBase):
             # get the walltime limit
             max_time = self.get_maxtime(this_panda_queue_dict)
 
-            # not needed: prod_source_label = harvester_queue_config.get_source_label(work_spec.jobType)
-
             # create the scheduler and workers
 
             # input parameters [to be passed to the script]
             harvester_workdir = os.environ.get('HARVESTER_WORKDIR', '/data/atlpan/harvester/workdir')
             nworkers = 2  # number of dask workers
             interactive_mode = True  # True means interactive jupyterlab session, False means pilot pod runs user payload
-            password = 'trustno1'  # jupyterlab password
+            session_type = 'jupyterlab'  # Later try with 'ContainerSSH'
             userid = ''.join(random.choice(ascii_lowercase) for _ in range(5))  # unique 5-char user id (basically for K8)
             namespace = f'single-user-{userid}'
+
+            # try statement in case secrets are not provided in job_spec
+            tmp_log.debug(f'job_spec={job_spec}')
+            try:
+                username, password = self.get_secrets(job_spec.secret)
+            except Exception as exc:
+                tmp_log.warning(f'exception caught: {exc}')
+                username = 'user'
+                password = 'trustno1'  # jupyterlab password - for testing - to be removed [fail instead]
+                # return (False, 'no user secrets found')
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
             submitter = DaskSubmitterBase(nworkers=nworkers,
+                                          username=username,
                                           password=password,
                                           interactive_mode=interactive_mode,
+                                          session_type=session_type,
                                           workdir=harvester_workdir,
                                           userid=userid,
                                           namespace=namespace,
@@ -461,6 +473,16 @@ class DaskSubmitter(PluginBase):
             tmp_return_value = (True, '')
 
         return tmp_return_value
+
+    def get_secrets(self, secret):
+        """
+        Extract the secret user information.
+
+        :param secret: secret dictionary.
+        :return: username (string), password (string).
+        """
+
+        return secret.get('username', 'user'), secret.get('password', 'trustno1')
 
     # submit workers (and scheduler)
     def submit_workers(self, workspec_list):

@@ -980,7 +980,7 @@ def get_jupyterlab_info(timeout=300, namespace=None):
     return '', podname, stderr
 
 
-def deploy_workers(scheduler_ip, _nworkers, yaml_files, namespace, user_id, imagename, mountpath, workdir):
+def deploy_workers(scheduler_ip, _nworkers, yaml_files, namespace, user_id, imagename, mountpath, workdir, pandaid):
     """
     Deploy the worker pods and return a dictionary with the worker info.
 
@@ -994,14 +994,15 @@ def deploy_workers(scheduler_ip, _nworkers, yaml_files, namespace, user_id, imag
     :param imagename: image name (string).
     :param mountpath: FS mount path (string).
     :param workdir: path to working directory (string).
+    :param pandaid: panda id (int).
     :return: worker info dictionary, stderr (dictionary, string).
     """
 
     worker_info = {}
     for _iworker in range(_nworkers):
 
-        worker_name = 'dask-worker-%d' % _iworker
-        worker_path = os.path.join(workdir, yaml_files.get('dask-worker') % _iworker)
+        worker_name = f'dask-worker-{_iworker}-{pandaid}'
+        worker_path = os.path.join(workdir, yaml_files.get('dask-worker') % (pandaid, _iworker))
         worker_info[worker_name] = worker_path
 
         # create worker yaml
@@ -1022,7 +1023,7 @@ def deploy_workers(scheduler_ip, _nworkers, yaml_files, namespace, user_id, imag
         if not status:
             return None, stderr
 
-        base_logger.info('deployed dask-worker-%d pod', _iworker)
+        base_logger.info(f'deployed {worker_name} pod')
 
     return worker_info, ''
 
