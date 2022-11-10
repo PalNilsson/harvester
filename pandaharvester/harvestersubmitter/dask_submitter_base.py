@@ -394,7 +394,7 @@ class DaskSubmitterBase(object):
         timing['tnamespace'] = time.time()
         base_logger.info(f'created namespace: {self.get_namespace()}')
 
-
+        self.cleanup(namespace=self._namespace, user_id=self._userid)
         return -1, {}, 'stopping after creating namespace'
 
 

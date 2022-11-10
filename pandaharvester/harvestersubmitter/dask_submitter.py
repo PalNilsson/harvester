@@ -11,6 +11,7 @@ import re
 import json
 import argparse
 import traceback
+from shutil import rmtree
 from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor
 
@@ -29,6 +30,7 @@ from pandaharvester.harvestercore.queue_config_mapper import QueueConfigMapper
 #from pandaharvester.harvestersubmitter import submitter_common
 from pandaharvester.harvestermisc import dask_utils
 from pandaharvester.harvestersubmitter.dask_submitter_base import DaskSubmitterBase
+from pandaharvester.harvestercore.work_spec import WorkSpec
 
 # logger
 base_logger = core_utils.setup_logger('dask_submitter')
@@ -228,6 +230,7 @@ class DaskSubmitter(PluginBase):
 
         tmp_log.debug(f'processing job {job_spec.PandaID} (create local and remote work directories)')
         job_spec_dict = dask_utils.to_dict(job_spec)
+        tmp_log.debug(f'job_spec_dict={job_spec_dict}')
 
         # pilot pod will create user space; submitter will create job definition and push it to /mnt/dask
         # where it will be discovered by the pilot pod (who will know the job id and therefore which job def to pull)
@@ -320,7 +323,7 @@ class DaskSubmitter(PluginBase):
         tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='remove_local_dir')
 
         try:
-            os.rmdir(directory)
+            rmtree(directory)
         except OSError as exc:
             tmp_log.warning(exc)
         else:
@@ -354,10 +357,8 @@ class DaskSubmitter(PluginBase):
         if len(job_spec_list) > 1:
             tmp_log.warning(f'can only handle single dask job: found {len(job_spec_list)} jobs!')
         job_spec = job_spec_list[0]
-        tmp_log.debug(f'job_spec={job_spec}')
 
         # create the job definition both locally and remotely
-        # note: the remote directory (self._remote_workdir) will have to be removed at some point
         exit_code, diagnostics = self.place_job_def(job_spec)
         # always remove the local work dir immediately
         if self._local_workdir and os.path.exists(self._local_workdir):
@@ -408,14 +409,15 @@ class DaskSubmitter(PluginBase):
             namespace = f'single-user-{userid}'
 
             # try statement in case secrets are not provided in job_spec
-            tmp_log.debug(f'job_spec={job_spec}')
             try:
-                username, password = self.get_secrets(job_spec.secret)
+                username, password = self.get_secrets(job_spec)
             except Exception as exc:
                 tmp_log.warning(f'exception caught: {exc}')
                 username = 'user'
                 password = 'trustno1'  # jupyterlab password - for testing - to be removed [fail instead]
                 # return (False, 'no user secrets found')
+            tmp_log.debug(f'username={username}')
+            tmp_log.debug(f'password={password}')
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
@@ -434,6 +436,8 @@ class DaskSubmitter(PluginBase):
                 if exitcode:
                     err_str = f'failed with exit code={exitcode}, diagnostics={diagnostics}'
                     tmp_log.warning(err_str)
+                    work_spec.set_status(WorkSpec.ST_failed)
+                    job_spec.status = 'failed'
                     tmp_return_value = (False, err_str)
                 elif service_info:
                     # IP numbers should now be known
@@ -474,22 +478,42 @@ class DaskSubmitter(PluginBase):
 
         return tmp_return_value
 
-    def get_secrets(self, secret):
+    def get_secrets(self, job_spec):
         """
         Extract the secret user information.
 
-        :param secret: secret dictionary.
+        :param job_spec: job spec dictionary.
         :return: username (string), password (string).
         """
 
-        return secret.get('username', 'user'), secret.get('password', 'trustno1')
+        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='get_secrets')
+
+        username = None
+        password = None
+        _secret = None
+
+        job_spec_dict = dask_utils.to_dict(job_spec)
+        job = job_spec_dict.get(job_spec.PandaID)
+        secrets_str = job.get('secrets', None)  # json string
+        if secrets_str:
+            secrets = json.loads(secrets_str)
+            for key in secrets.keys():
+                _secret = secrets[key]
+                break
+            if _secret:
+                username = _secret.get('username', 'user')
+                password = _secret.get('password', 'trustno1')
+        else:
+            tmp_log.warning(f'no secrets in {job} (panda id={job_spec.PandaID})')
+
+        return username, password
 
     # submit workers (and scheduler)
     def submit_workers(self, workspec_list):
         tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='submit_workers')
 
         n_workers = len(workspec_list)
-        tmp_log.debug(f'start, n_workers={n_workers}')
+        base_logger.debug(f'start, n_workers={n_workers}')
 
         ret_list = list()
         if not workspec_list:
