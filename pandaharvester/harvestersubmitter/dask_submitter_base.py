@@ -73,7 +73,7 @@ class DaskSubmitterBase(object):
         self._nfs_server = kwargs.get('nfs_server', '10.226.152.66')
         self._pandaid = kwargs.get('pandaid')
 
-        self._files = {  # pandaid will be added (amd dask worker in the case of 'dask-worker')
+        self._files = {  # pandaid will be added (amd dask worker id in the case of 'dask-worker')
             'dask-scheduler-service': '%d-dask-scheduler-service.yaml',
             'dask-scheduler': '%d-dask-scheduler-deployment.yaml',
             'dask-worker': '%d-dask-worker-deployment-%d.yaml',
@@ -387,12 +387,12 @@ class DaskSubmitterBase(object):
         # create unique name space
         status, stderr = self.create_namespace()
         if not status:
-            stderr = 'failed to create namespace %s: %s' % (self.get_namespace(), stderr)
+            stderr = f'failed to create namespace {self.get_namespace()}: {stderr}'
             base_logger.warning(stderr)
             self.cleanup()
             return ERROR_NAMESPACE, {}, stderr
         timing['tnamespace'] = time.time()
-        base_logger.info('created namespace: %s', self.get_namespace())
+        base_logger.info(f'created namespace: {self.get_namespace()}')
 
 
         return -1, {}, 'stopping after creating namespace'
@@ -616,3 +616,14 @@ class DaskSubmitterBase(object):
             base_logger.debug('executing: %s', cmd)
             ec, stdout, stderr = dask_utils.execute(cmd)
             base_logger.debug(stdout)
+
+        # cleanup tmp files
+        for filename in self._files:
+            if not 'dask-worker-deployment' in filename:
+                path = os.path.join(self._workdir, filename % self._pandaid)
+                if os.path.exists(path):
+                    base_logger.debug(f'could have removed {path}')
+        for worker in self._namespace:
+            path = os.path.join(self._workdir, self._files.get('dask-worker') % (self._pandaid, worker))
+            if os.path.exists(path):
+                base_logger.debug(f'could have removed {path}')
