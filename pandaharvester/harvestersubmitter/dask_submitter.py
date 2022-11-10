@@ -501,6 +501,7 @@ class DaskSubmitter(PluginBase):
                 _secret = secrets[key]
                 break
             if _secret:
+                _secret = json.loads(_secret)
                 username = _secret.get('username', 'user')
                 password = _secret.get('password', 'trustno1')
         else:
