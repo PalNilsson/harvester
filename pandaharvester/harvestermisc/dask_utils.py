@@ -271,7 +271,7 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
                 if 'STATUS' in _dic:
                     _state = _dic.get('STATUS')
                     if _state == state:
-                        base_logger.info('%s is running', _name)
+                        base_logger.info(f'%s is in state {state}', _name)
                         processing = False
                         break
                 if 'EXTERNAL-IP' in _dic and name == _name:  # only look at the load balancer info (dask-scheduler-svc)
@@ -760,7 +760,7 @@ def get_remote_cleanup_yaml(image_source=None, nfs_path=None, namespace=None, wo
     :param image_source: image source (string).
     :param nfs_path: NFS path (string).
     :param namespace: namespace (string).
-    :param workdir: working directory (string).
+    :param workdir: remote working directory to be deleted (string).
     :param user_id: user id (string).
     :return: yaml (string).
     """

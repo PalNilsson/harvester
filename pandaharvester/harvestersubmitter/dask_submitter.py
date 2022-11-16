@@ -436,6 +436,10 @@ class DaskSubmitter(PluginBase):
                 if exitcode:
                     err_str = f'failed with exit code={exitcode}, diagnostics={diagnostics}'
                     tmp_log.warning(err_str)
+
+                    tmp_log.warning(f'deleting remote workdir: {self._remote_workdir}')
+                    submitter.deploy_cleanup(self._remote_workdir)
+
                     work_spec.set_status(WorkSpec.ST_failed)
                     job_spec.status = 'failed'
                     tmp_return_value = (False, err_str)
@@ -456,7 +460,7 @@ class DaskSubmitter(PluginBase):
                 # done, cleanup and exit
                 if interactive_mode:
                     # create the clean-up script
-                    submitter.create_cleanup_script()
+                    submitter.create_cleanup_script(work_spec.workerID)
                 else:
                     # pilot pod should be done - clean-up everything
                     submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)

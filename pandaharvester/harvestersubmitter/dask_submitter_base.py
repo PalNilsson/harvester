@@ -271,6 +271,37 @@ class DaskSubmitterBase(object):
 
         return status, stderr
 
+    def deploy_cleanup(self, remote_workdir):
+        """
+        Deploy the pilot pod.
+        The method will return when the pod is in state 'Terminated'.
+
+        :return: True if successful (Boolean), [None], stderr (string).
+        """
+
+        # create cleanup yaml
+        path = os.path.join(self._workdir, self._files.get('remote-cleanup') % self._pandaid)
+        yaml = dask_utils.get_remote_cleanup_yaml(image_source=self._images.get('remote_cleanup', 'unknown'),
+                                                  nfs_path=self._mountpath,
+                                                  namespace=self._namespace,
+                                                  workdir=remote_workdir,
+                                                  user_id=self._userid)
+        status = dask_utils.write_file(path, yaml, mute=False)
+        if not status:
+            stderr = 'cannot continue since remote-cleanup yaml file could not be created'
+            base_logger.warning(stderr)
+            return False, stderr
+
+        # start the remote-cleanup pod
+        status, _, stderr = dask_utils.kubectl_create(filename=path)
+        if not status:
+            base_logger.warning(f'failed to create remote-cleanup pod for remote directory {remote_workdir}: %s', stderr)
+            return False, stderr
+        else:
+            base_logger.debug('created remote-cleanup pod (waiting until terminated)')
+
+        return dask_utils.wait_until_deployment(name=self._podnames.get('remote-cleanup', 'unknown'), state='Terminated', namespace=self._namespace)
+
     def deploy_pilot(self, scheduler_ip):
         """
         Deploy the pilot pod.
@@ -488,8 +519,8 @@ class DaskSubmitterBase(object):
 
         # deploy the worker pods
         status, stderr = self.deploy_dask_workers(scheduler_ip=service_info['dask-scheduler'].get('internal_ip'),
-                                                       scheduler_pod_name=service_info['dask-scheduler'].get('pod_name'),
-                                                       jupyter_pod_name=service_info['jupyterlab'].get('pod_name'))
+                                                  scheduler_pod_name=service_info['dask-scheduler'].get('pod_name'),
+                                                  jupyter_pod_name=service_info['jupyterlab'].get('pod_name'))
         if not status:
             stderr = 'failed to deploy dask workers: %s' % stderr
             base_logger.warning(stderr)
@@ -540,9 +571,10 @@ class DaskSubmitterBase(object):
         _info += '\n********************************************************'
         base_logger.info(_info)
 
-    def create_cleanup_script(self):
+    def create_cleanup_script(self, workerid):
         """
         Create a clean-up script, useful for interactive sessions (at least in stand-alone mode).
+        The script can be executed by the dask sweeper, which should also delete the file.
 
         :return:
         """
@@ -557,7 +589,7 @@ class DaskSubmitterBase(object):
         cmds += 'kubectl delete pv fileserver-%s --namespace=single-user-%s\n' % (self._userid, self._userid)
         cmds += 'kubectl delete namespaces single-user-%s\n' % self._userid
 
-        path = os.path.join(self._workdir, 'deleteall.sh')
+        path = os.path.join(self._workdir, f'{workerid}-cleanup.sh')
         status = dask_utils.write_file(path, cmds)
         if not status:
             return False, 'write_file failed for file %s' % path
