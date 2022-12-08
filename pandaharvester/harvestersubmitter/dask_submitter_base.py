@@ -425,9 +425,6 @@ class DaskSubmitterBase(object):
         timing['tnamespace'] = time.time()
         base_logger.info(f'created namespace: {self.get_namespace()}')
 
-        return -1, {}, 'stopping after creating namespace'
-
-
         # create PVC and PV
         for name in ['pvc', 'pv']:
             status, stderr = self.create_pvcpv(name=name)
@@ -441,6 +438,9 @@ class DaskSubmitterBase(object):
         if exitcode:
             return exitcode, {}, stderr
         base_logger.info('created PVC and PV')
+
+        return -1, {}, 'stopping after creating namespace'
+
 
         # create the dask scheduler service with a load balancer (the external IP of the load balancer will be made
         # available to the caller)
