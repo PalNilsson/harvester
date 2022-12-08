@@ -435,6 +435,7 @@ class DaskSubmitter(PluginBase):
             if submitter:
                 info = 'not set yet'
                 exitcode, service_info, diagnostics = submitter.install(timing)
+                tmp_log.debug(f'exitcode={exitcode}')
                 if exitcode:
                     err_str = f'failed with exit code={exitcode}, diagnostics={diagnostics}'
                     tmp_log.warning(err_str)

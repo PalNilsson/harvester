@@ -426,6 +426,7 @@ class DaskSubmitterBase(object):
         base_logger.info(f'created namespace: {self.get_namespace()}')
 
         self.cleanup(namespace=self._namespace, user_id=self._userid)
+        base_logger.debug('cleanup() done')
         return -1, {}, 'stopping after creating namespace'
 
 
@@ -433,7 +434,7 @@ class DaskSubmitterBase(object):
         for name in ['pvc', 'pv']:
             status, stderr = self.create_pvcpv(name=name)
             if not status:
-                stderr = 'could not create PVC/PV: %s' % stderr
+                stderr = f'could not create PVC/PV: {stderr}'
                 base_logger.warning(stderr)
                 self.cleanup(namespace=self._namespace, user_id=self._userid)
                 exitcode = ERROR_PVPVC
@@ -464,7 +465,7 @@ class DaskSubmitterBase(object):
             _service = service + '-service'
             _ip, stderr = self.wait_for_service(_service)
             if stderr:
-                stderr = 'failed to start load balancer for %s: %s' % (_service, stderr)
+                stderr = f'failed to start load balancer for {_service}: {stderr}'
                 base_logger.warning(stderr)
                 self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
                 exitcode = ERROR_LOADBALANCER
@@ -472,7 +473,7 @@ class DaskSubmitterBase(object):
             if service not in service_info:
                 service_info[service] = {}
             service_info[service]['external_ip'] = _ip
-            base_logger.info('load balancer for %s has external ip=%s', _service, service_info[service].get('external_ip'))
+            base_logger.info(f'load balancer for {_service} has external ip={service_info[service].get('external_ip')}')
         timing['tloadbalancers'] = time.time()
         if exitcode:
             return exitcode, {}, stderr
@@ -481,7 +482,7 @@ class DaskSubmitterBase(object):
         for service in services:
             stderr = self.deploy_service_pod(service)
             if stderr:
-                stderr = 'failed to deploy %s pod: %s' % (service, stderr)
+                stderr = f'failed to deploy {service} pod: {stderr}'
                 base_logger.warning(stderr)
                 self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
                 exitcode = ERROR_DEPLOYMENT
@@ -496,7 +497,7 @@ class DaskSubmitterBase(object):
         for service in services:
             internal_ip, _pod_name, stderr = self.get_service_info(service)
             if stderr:
-                stderr = '%s pod failed: %s' % (service, stderr)
+                stderr = f'{service} pod failed: {stderr}'
                 base_logger.warning(stderr)
                 self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
                 exitcode = ERROR_PODFAILURE
@@ -504,9 +505,9 @@ class DaskSubmitterBase(object):
             service_info[service]['internal_ip'] = internal_ip
             service_info[service]['pod_name'] = _pod_name
             if internal_ip:
-                base_logger.info('pod %s with internal ip=%s started correctly', _pod_name, internal_ip)
+                base_logger.info(f'pod {_pod_name} with internal ip={internal_ip} started correctly')
             else:
-                base_logger.info('pod %s started correctly', _pod_name)
+                base_logger.info(f'pod {_pod_name} started correctly')
         timing['tserviceinfo'] = time.time()
         if exitcode:
             return exitcode, {}, stderr
@@ -522,7 +523,7 @@ class DaskSubmitterBase(object):
                                                   scheduler_pod_name=service_info['dask-scheduler'].get('pod_name'),
                                                   jupyter_pod_name=service_info['jupyterlab'].get('pod_name'))
         if not status:
-            stderr = 'failed to deploy dask workers: %s' % stderr
+            stderr = f'failed to deploy dask workers: {stderr}'
             base_logger.warning(stderr)
             self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
             exitcode = ERROR_DASKWORKER
@@ -541,8 +542,8 @@ class DaskSubmitterBase(object):
         status, _, stderr = self.deploy_pilot(service_info['dask-scheduler-service'].get('internal_ip'))
 
         # time.sleep(30)
-        cmd = 'kubectl logs dask-pilot --namespace=%s' % self._namespace
-        base_logger.debug('executing: %s', cmd)
+        cmd = f'kubectl logs dask-pilot --namespace={single-user-{self._userid}}'
+        base_logger.debug(f'executing: {cmd}')
         ec, stdout, stderr = dask_utils.execute(cmd)
         base_logger.debug(stdout)
 
@@ -580,19 +581,19 @@ class DaskSubmitterBase(object):
         """
 
         cmds = '#!/bin/bash\n'
-        cmds += 'kubectl delete --all deployments --namespace=single-user-%s\n' % self._userid
-        cmds += 'kubectl delete --all pods --namespace=single-user-%s\n' % self._userid
-        cmds += 'kubectl delete --all services --namespace=single-user-%s\n' % self._userid
+        cmds += f'kubectl delete --all deployments --namespace=single-user-{self._userid}\n'
+        cmds += f'kubectl delete --all pods --namespace=single-user-{self._userid}\n'
+        cmds += f'kubectl delete --all services --namespace=single-user-{self._userid}\n'
         cmds += 'kubectl patch pvc fileserver-claim -p \'{"metadata":{"finalizers":null}}\' --namespace=single-user-%s\n' % self._userid
-        cmds += 'kubectl delete pvc fileserver-claim --namespace=single-user-%s\n' % self._userid
+        cmds += f'kubectl delete pvc fileserver-claim --namespace=single-user-{self._userid}\n'
         cmds += 'kubectl patch pv fileserver-%s -p \'{"metadata":{"finalizers":null}}\' --namespace=single-user-%s\n' % (self._userid, self._userid)
-        cmds += 'kubectl delete pv fileserver-%s --namespace=single-user-%s\n' % (self._userid, self._userid)
-        cmds += 'kubectl delete namespaces single-user-%s\n' % self._userid
+        cmds += f'kubectl delete pv fileserver-{self._userid} --namespace=single-user-{self._userid}\n'
+        cmds += f'kubectl delete namespaces single-user-{self._userid}\n'
 
         path = os.path.join(self._workdir, f'{workerid}-cleanup.sh')
         status = dask_utils.write_file(path, cmds)
         if not status:
-            return False, 'write_file failed for file %s' % path
+            return False, f'write_file failed for file {path}'
         else:
             os.chmod(path, 0o755)
 
@@ -608,51 +609,51 @@ class DaskSubmitterBase(object):
         """
 
         if namespace:
-            cmd = 'kubectl delete --all deployments --namespace=%s' % namespace
-            base_logger.debug('executing: %s', cmd)
+            cmd = f'kubectl delete --all deployments --namespace={namespace}'
+            base_logger.debug(f'executing: {cmd}')
             ec, stdout, stderr = dask_utils.execute(cmd)
             base_logger.debug(stdout)
 
-            cmd = 'kubectl delete --all pods --namespace=%s' % namespace
-            base_logger.debug('executing: %s', cmd)
+            cmd = f'kubectl delete --all pods --namespace={namespace}'
+            base_logger.debug(f'executing: {cmd}')
             ec, stdout, stderr = dask_utils.execute(cmd)
             base_logger.debug(stdout)
 
-            cmd = 'kubectl delete --all services --namespace=%s' % namespace
-            base_logger.debug('executing: %s', cmd)
+            cmd = f'kubectl delete --all services --namespace={namespace}'
+            base_logger.debug(f'executing: {cmd}')
             ec, stdout, stderr = dask_utils.execute(cmd)
             base_logger.debug(stdout)
 
         if pvc:
             cmd = 'kubectl patch pvc fileserver-claim -p \'{\"metadata\": {\"finalizers\": null}}\' --namespace=%s' % namespace
-            base_logger.debug('executing: %s', cmd)
+            base_logger.debug(f'executing: {cmd}')
             ec, stdout, stderr = dask_utils.execute(cmd)
             base_logger.debug(stdout)
-            cmd = 'kubectl delete pvc fileserver-claim --namespace=%s' % namespace
-            base_logger.debug('executing: %s', cmd)
+            cmd = f'kubectl delete pvc fileserver-claim --namespace={namespace}'
+            base_logger.debug(f'executing: {cmd}')
             ec, stdout, stderr = dask_utils.execute(cmd)
             base_logger.debug(stdout)
 
         if pv:
             cmd = 'kubectl patch pv fileserver-%s -p \'{\"metadata\": {\"finalizers\": null}}\'' % user_id
-            base_logger.debug('executing: %s', cmd)
+            base_logger.debug(f'executing: {cmd}')
             ec, stdout, stderr = dask_utils.execute(cmd)
             base_logger.debug(stdout)
-            cmd = 'kubectl delete pv fileserver-%s' % user_id
-            base_logger.debug('executing: %s', cmd)
+            cmd = f'kubectl delete pv fileserver-{user_id}'
+            base_logger.debug(f'executing: {cmd}')
             ec, stdout, stderr = dask_utils.execute(cmd)
             base_logger.debug(stdout)
 
         if namespace:
-            cmd = 'kubectl delete namespaces %s' % namespace
-            base_logger.debug('executing: %s', cmd)
+            cmd = f'kubectl delete namespaces {namespace}'
+            base_logger.debug(f'executing: {cmd}')
             ec, stdout, stderr = dask_utils.execute(cmd)
             base_logger.debug(stdout)
 
         # cleanup tmp files
         for filename in self._files:
-            if not 'dask-worker-deployment' in filename:
-                path = os.path.join(self._workdir, filename % self._pandaid)
+            if not 'dask-worker-deployment' in self._files.get(filename):
+                path = os.path.join(self._workdir, self._files.get(filename) % self._pandaid)
                 if os.path.exists(path):
                     base_logger.debug(f'could have removed {path}')
         for worker in self._namespace:
