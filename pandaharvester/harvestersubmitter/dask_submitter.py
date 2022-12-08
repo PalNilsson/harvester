@@ -56,6 +56,10 @@ ERROR_MKDIR = 8
 ERROR_WRITEFILE = 9
 ERROR_REMOTEDIR = 10
 
+# default user secrets (overwritten by job definition)
+USERNAME = 'user'
+PASSWORD = 'user'
+
 # submitter for Dask
 class DaskSubmitter(PluginBase):
 
@@ -413,11 +417,9 @@ class DaskSubmitter(PluginBase):
                 username, password = self.get_secrets(job_spec)
             except Exception as exc:
                 tmp_log.warning(f'exception caught: {exc}')
-                username = 'user'
-                password = 'trustno1'  # jupyterlab password - for testing - to be removed [fail instead]
+                username = USERNAME
+                password = PASSWORD
                 # return (False, 'no user secrets found')
-            tmp_log.debug(f'username={username}')
-            tmp_log.debug(f'password={password}')
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
@@ -492,8 +494,8 @@ class DaskSubmitter(PluginBase):
 
         tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='get_secrets')
 
-        username = None
-        password = None
+        username = USERNAME
+        password = PASSWORD
         _secret = None
 
         job_spec_dict = dask_utils.to_dict(job_spec)
@@ -509,7 +511,7 @@ class DaskSubmitter(PluginBase):
                 username = _secret.get('username', 'user')
                 password = _secret.get('password', 'trustno1')
         else:
-            tmp_log.warning(f'no secrets in {job} (panda id={job_spec.PandaID})')
+            tmp_log.warning(f'no secrets in job definition - using default values (panda id={job_spec.PandaID})')
 
         return username, password
 
