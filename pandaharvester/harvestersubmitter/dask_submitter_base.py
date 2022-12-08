@@ -473,7 +473,7 @@ class DaskSubmitterBase(object):
             if service not in service_info:
                 service_info[service] = {}
             service_info[service]['external_ip'] = _ip
-            base_logger.info(f'load balancer for {_service} has external ip={service_info[service].get('external_ip')}')
+            base_logger.info(f'load balancer for {_service} has external ip={service_info[service].get("external_ip")}')
         timing['tloadbalancers'] = time.time()
         if exitcode:
             return exitcode, {}, stderr
