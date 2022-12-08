@@ -281,7 +281,7 @@ class DaskSubmitterBase(object):
 
         # create cleanup yaml
         path = os.path.join(self._workdir, self._files.get('remote-cleanup') % self._pandaid)
-        yaml = dask_utils.get_remote_cleanup_yaml(image_source=self._images.get('remote_cleanup', 'unknown'),
+        yaml = dask_utils.get_remote_cleanup_yaml(image_source=self._images.get('remote-cleanup', 'unknown'),
                                                   nfs_path=self._mountpath,
                                                   namespace=self._namespace,
                                                   workdir=remote_workdir,
