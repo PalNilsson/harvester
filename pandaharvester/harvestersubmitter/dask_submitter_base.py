@@ -656,7 +656,7 @@ class DaskSubmitterBase(object):
                 path = os.path.join(self._workdir, self._files.get(filename) % self._pandaid)
                 if os.path.exists(path):
                     base_logger.debug(f'could have removed {path}')
-        for worker in self._namespace:
+        for worker in range(self._nworkers):
             path = os.path.join(self._workdir, self._files.get('dask-worker') % (self._pandaid, worker))
             if os.path.exists(path):
                 base_logger.debug(f'could have removed {path}')
