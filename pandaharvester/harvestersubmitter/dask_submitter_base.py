@@ -189,7 +189,7 @@ class DaskSubmitterBase(object):
         :return: stderr (string).
         """
 
-        fname = self._files.get(name % self._pandaid)
+        fname = self._files.get(name) % self._pandaid
         if fname == 'unknown':
             stderr = 'unknown file name for %s yaml' % name
             base_logger.warning(stderr)
