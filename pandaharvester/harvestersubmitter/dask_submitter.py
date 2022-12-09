@@ -464,9 +464,9 @@ class DaskSubmitter(PluginBase):
                 if interactive_mode:
                     # create the clean-up script [eventually to be executed by sweeper instead of executing cleanup() below?]
                     submitter.create_cleanup_script(work_spec.workerID)
-
-                # pilot pod should be done - clean-up everything (skip if sweeper deletes everything?)
-                submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
+                else:
+                    # pilot pod should be done - clean-up everything (skip if sweeper deletes everything?)
+                    submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
                 submitter.timing_report(timing, info=info)
             else:
                 err_str = 'DaskSubmitterBase did not complete install()'

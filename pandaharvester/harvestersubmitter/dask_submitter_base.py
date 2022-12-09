@@ -298,9 +298,9 @@ class DaskSubmitterBase(object):
             base_logger.warning(f'failed to create remote-cleanup pod for remote directory {remote_workdir}: %s', stderr)
             return False, stderr
         else:
-            base_logger.debug('created remote-cleanup pod (waiting until completed)')
+            base_logger.debug('created remote-cleanup pod (waiting until completed/terminated)')
 
-        return dask_utils.wait_until_deployment(name=self._podnames.get('remote-cleanup', 'unknown'), state='Completed', namespace=self._namespace)
+        return dask_utils.wait_until_deployment(name=self._podnames.get('remote-cleanup', 'unknown'), state='Completed|Terminated', namespace=self._namespace)
 
     def deploy_pilot(self, scheduler_ip):
         """

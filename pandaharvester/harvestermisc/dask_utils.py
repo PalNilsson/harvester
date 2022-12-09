@@ -230,6 +230,8 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
     Example: name=dask-pilot, state='Running', timeout=120. Function will wait a maximum of 120 s for the
     dask-pilot pod to reach Running state.
 
+    Note: state can also be e.g. Completed|Terminated.
+
     :param name: pod or service name (string).
     :param state: optional pod status (string).
     :param timeout: time-out (integer).
@@ -270,7 +272,7 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
                 _dic = dictionary.get(_name)
                 if 'STATUS' in _dic:
                     _state = _dic.get('STATUS')
-                    if _state == state:
+                    if _state in state:
                         base_logger.info(f'%s is in state {state}', _name)
                         processing = False
                         break
@@ -294,7 +296,7 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
 
         now = time.time()
 
-    status = True if (_state and _state == state) else False
+    status = True if (_state and _state in state) else False
     return status, _external_ip, stderr
 
 
