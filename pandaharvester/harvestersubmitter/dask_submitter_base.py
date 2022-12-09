@@ -298,7 +298,7 @@ class DaskSubmitterBase(object):
             base_logger.warning(f'failed to create remote-cleanup pod for remote directory {remote_workdir}: %s', stderr)
             return False, stderr
         else:
-            base_logger.debug('created remote-cleanup pod (waiting until terminated)')
+            base_logger.debug('created remote-cleanup pod (waiting until completed)')
 
         return dask_utils.wait_until_deployment(name=self._podnames.get('remote-cleanup', 'unknown'), state='Completed', namespace=self._namespace)
 
@@ -438,9 +438,6 @@ class DaskSubmitterBase(object):
         if exitcode:
             return exitcode, {}, stderr
         base_logger.info('created PVC and PV')
-
-        return -1, {}, 'stopping after creating namespace'
-
 
         # create the dask scheduler service with a load balancer (the external IP of the load balancer will be made
         # available to the caller)
