@@ -300,7 +300,7 @@ class DaskSubmitterBase(object):
         else:
             base_logger.debug('created remote-cleanup pod (waiting until terminated)')
 
-        return dask_utils.wait_until_deployment(name=self._podnames.get('remote-cleanup', 'unknown'), state='Terminated', namespace=self._namespace)
+        return dask_utils.wait_until_deployment(name=self._podnames.get('remote-cleanup', 'unknown'), state='Completed', namespace=self._namespace)
 
     def deploy_pilot(self, scheduler_ip):
         """
