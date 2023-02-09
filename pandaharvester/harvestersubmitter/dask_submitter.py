@@ -420,6 +420,13 @@ class DaskSubmitter(PluginBase):
                 username = USERNAME
                 password = PASSWORD
                 # return (False, 'no user secrets found')
+<<<<<<< HEAD
+
+            # get the user image, if set
+            user_image = self.get_user_image(job_spec)
+            tmp_log.debug(f'user image={user_image}')
+=======
+>>>>>>> 228e37f856f2d15e4d3951c87592efaa0227a32e
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
@@ -515,6 +522,20 @@ class DaskSubmitter(PluginBase):
             tmp_log.warning(f'no secrets in job definition - using default values (panda id={job_spec.PandaID})')
 
         return username, password
+
+    def get_user_image(self, job_spec):
+        """
+        Extract the user image.
+
+        :param job_spec: job spec dictionary.
+        :return: user image name (string).
+        """
+
+        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='get_user_image')
+
+        job_spec_dict = dask_utils.to_dict(job_spec)
+        job = job_spec_dict.get(job_spec.PandaID)
+        return job.get('container_name', None)  # json string
 
     # submit workers (and scheduler)
     def submit_workers(self, workspec_list):
