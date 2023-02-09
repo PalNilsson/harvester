@@ -420,13 +420,10 @@ class DaskSubmitter(PluginBase):
                 username = USERNAME
                 password = PASSWORD
                 # return (False, 'no user secrets found')
-<<<<<<< HEAD
 
             # get the user image, if set
             user_image = self.get_user_image(job_spec)
             tmp_log.debug(f'user image={user_image}')
-=======
->>>>>>> 228e37f856f2d15e4d3951c87592efaa0227a32e
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
