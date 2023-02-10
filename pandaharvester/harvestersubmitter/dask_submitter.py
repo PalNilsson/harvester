@@ -436,7 +436,8 @@ class DaskSubmitter(PluginBase):
                                           workdir=harvester_workdir,
                                           userid=userid,
                                           namespace=namespace,
-                                          pandaid=job_spec.PandaID)
+                                          pandaid=job_spec.PandaID,
+                                          workspec=work_spec)
             if submitter:
                 info = 'not set yet'
                 exitcode, service_info, diagnostics = submitter.install(timing)

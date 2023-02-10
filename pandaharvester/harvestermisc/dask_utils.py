@@ -1030,11 +1030,10 @@ def deploy_workers(scheduler_ip, _nworkers, yaml_files, namespace, user_id, imag
     return worker_info, ''
 
 
-def await_worker_deployment(worker_info, namespace, scheduler_pod_name='', jupyter_pod_name='', timeout=300):
+def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='', timeout=300):
     """
     Wait for all workers to start running.
 
-    :param worker_info: worker info dictionary.
     :param namespace: namespace (string).
     :param scheduler_pod_name: pod name for scheduler (string).
     :param timeout: optional time-out (int).
@@ -1185,3 +1184,27 @@ def to_dict(job_spec):
         base_logger.warning(f'failed to create job spec dictionary: {exc}')
 
     return job_spec_dict
+
+
+def extract_pod_info(namespace):
+    """
+    Extract the actual namespace, scheduler pod name and session pod name encoded in the work spec namespace variable.
+    The 'session' would typically be jupyterlab.
+
+    :param namespace: encoded name space (string).
+    :return: actual name space (string), scheduler pod name (string), session pod name (string).
+    """
+
+    _namespace = ''
+    _scheduler_pod_name = ''
+    _session_pod_name = ''
+    pattern = r'namespace\=(.+)\:dask\-scheduler\_pod\_name\=(.+)\:session\_pod\_name\=(.+)'
+    try:
+        info = re.findall(pattern, namespace)
+        _namespace = info[0][0]
+        _scheduler_pod_name = info[0][1]
+        _session_pod_name = info[0][2]
+    except Exception as exc:
+        print(f'failed to extract pod info from namespace={namespace}: {exc}')
+
+    return _namespace, _scheduler_pod_name, _session_pod_name

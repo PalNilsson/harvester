@@ -55,6 +55,7 @@ class DaskSubmitterBase(object):
     _podnames = None
     _ports = None
     _pandaid = None
+    _workspec = None
 
     # constructor
     def __init__(self, **kwargs):
@@ -72,6 +73,7 @@ class DaskSubmitterBase(object):
         self._workdir = kwargs.get('workdir')
         self._nfs_server = kwargs.get('nfs_server', '10.226.152.66')
         self._pandaid = kwargs.get('pandaid')
+        self._workspec = kwargs.get('workspec')
 
         self._files = {  # pandaid will be added (amd dask worker id in the case of 'dask-worker')
             'dask-scheduler-service': '%d-dask-scheduler-service.yaml',
@@ -260,8 +262,7 @@ class DaskSubmitterBase(object):
         # wait for the worker pods to start
         # (send any scheduler and jupyter pod name to function so they can be removed from a query)
         try:
-            status = dask_utils.await_worker_deployment(worker_info,
-                                                       self._namespace,
+            status = dask_utils.await_worker_deployment(self._namespace,
                                                        scheduler_pod_name=scheduler_pod_name,
                                                        jupyter_pod_name=jupyter_pod_name)
         except Exception as exc:
@@ -513,7 +514,12 @@ class DaskSubmitterBase(object):
         # switch context for the new namespace
         # status = dask_utils.kubectl_execute(cmd='config use-context', namespace='default')
 
-        # deploy the worker pods
+        # store the scheduler pod names, so the monitor can start checking the pod statuses
+        self._workspec.namespace = f"namespace={self._namespace}:" \
+                                   f"dask-scheduler_pod_name={service_info['dask-scheduler'].get('pod_name')}:" \
+                                   f"session_pod_name={service_info['jupyterlab'].get('pod_name')}"
+
+        # deploy the worker pods, but do not wait for them to start (this should be done by the dask monitor)
         status, stderr = self.deploy_dask_workers(scheduler_ip=service_info['dask-scheduler'].get('internal_ip'),
                                                   scheduler_pod_name=service_info['dask-scheduler'].get('pod_name'),
                                                   jupyter_pod_name=service_info['jupyterlab'].get('pod_name'))
@@ -537,7 +543,7 @@ class DaskSubmitterBase(object):
         status, _, stderr = self.deploy_pilot(service_info['dask-scheduler-service'].get('internal_ip'))
 
         # time.sleep(30)
-        cmd = f'kubectl logs dask-pilot --namespace={single-user-{self._userid}}'
+        cmd = f'kubectl logs dask-pilot --namespace=single-user-{self._userid}'
         base_logger.debug(f'executing: {cmd}')
         ec, stdout, stderr = dask_utils.execute(cmd)
         base_logger.debug(stdout)

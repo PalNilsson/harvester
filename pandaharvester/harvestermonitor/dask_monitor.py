@@ -6,8 +6,8 @@ from pandaharvester.harvestercore import core_utils
 from pandaharvester.harvestercore.work_spec import WorkSpec
 from pandaharvester.harvestercore.worker_errors import WorkerErrors
 from pandaharvester.harvestercore.plugin_base import PluginBase
-#from pandaharvester.harvestermisc.k8s_utils import k8s_Client
 from pandaharvester.harvestermisc.info_utils import PandaQueuesDict
+from pandaharvester.harvestermisc import dask_utils
 
 # logger
 base_logger = core_utils.setup_logger('dask_monitor')
@@ -108,13 +108,17 @@ class DaskMonitor(PluginBase):
         time_now = datetime.datetime.utcnow()
         pods_status_list = []
         pods_name_to_delete_list = []
-        try:
-            workspec.namespace
-        except:  # not set yet
+
+        # extract the namespace, scheduler and session pod names from the encoded workspec.namespace
+        if workspec.namespace:
+            _namespace, _scheduler_pod_name, _session_pod_name = dask_utils.extract_pod_info(workspec.namespace)
+            tmp_log.debug(f'namespace={_namespace}')
+            tmp_log.debug(f'scheduler pod name={_scheduler_pod_name}')
+            tmp_log.debug(f'session pod name={_session_pod_name}')
+        else:
             tmp_log.debug('workspec.namespace does not exist yet')
             return
-        else:
-            tmp_log.debug(f'received namespace={workspec.namespace}')
+
         try:
             pods_list = []  #self.k8s_client.filter_pods_info(self._all_pods_list, job_name=job_id)
             containers_state_list = []
