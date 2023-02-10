@@ -108,7 +108,13 @@ class DaskMonitor(PluginBase):
         time_now = datetime.datetime.utcnow()
         pods_status_list = []
         pods_name_to_delete_list = []
-
+        try:
+            workspec.namespace
+        except:  # not set yet
+            tmp_log.debug('workspec.namespace does not exist yet')
+            return
+        else:
+            tmp_log.debug(f'received namespace={workspec.namespace}')
         try:
             pods_list = []  #self.k8s_client.filter_pods_info(self._all_pods_list, job_name=job_id)
             containers_state_list = []
@@ -178,8 +184,8 @@ class DaskMonitor(PluginBase):
             return False, ret_list
 
         pods_info = None  #self.k8s_client.get_pods_info(workspec_list=workspec_list)
-        if pods_info is None:  # there was a communication issue to the K8S cluster
-            return False, ret_list
+        #if pods_info is None:  # there was a communication issue to the K8S cluster
+        #    return False, ret_list
 
         self._all_pods_list = pods_info
 

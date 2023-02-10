@@ -411,7 +411,8 @@ class DaskSubmitter(PluginBase):
             session_type = 'jupyterlab'  # Later try with 'ContainerSSH'
             userid = ''.join(random.choice(ascii_lowercase) for _ in range(5))  # unique 5-char user id (basically for K8)
             namespace = f'single-user-{userid}'
-
+            work_spec.namespace = namespace
+            tmp_log.debug(f'using namespace={work_spec.namespace}')
             # try statement in case secrets are not provided in job_spec
             try:
                 username, password = self.get_secrets(job_spec)
