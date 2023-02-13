@@ -95,7 +95,8 @@ class WorkSpec(SpecBase):
                            'eventFeedLock:text',
                            'errorCode:integer',
                            'errorDiag:text',
-                           'namespace:text'
+                           'namespace:text',
+                           'podStartTime:timestamp'
                            )
 
     # attributes to skip when slim reading

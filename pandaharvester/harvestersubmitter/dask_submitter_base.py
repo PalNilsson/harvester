@@ -261,15 +261,15 @@ class DaskSubmitterBase(object):
 
         # wait for the worker pods to start
         # (send any scheduler and jupyter pod name to function so they can be removed from a query)
-        try:
-            status = dask_utils.await_worker_deployment(self._namespace,
-                                                       scheduler_pod_name=scheduler_pod_name,
-                                                       jupyter_pod_name=jupyter_pod_name)
-        except Exception as exc:
-            stderr = 'caught exception: %s', exc
-            base_logger.warning(stderr)
-            status = False
-
+        #try:
+        #    status = dask_utils.await_worker_deployment(self._namespace,
+        #                                               scheduler_pod_name=scheduler_pod_name,
+        #                                               jupyter_pod_name=jupyter_pod_name)
+        #except Exception as exc:
+        #    stderr = 'caught exception: %s', exc
+        #    base_logger.warning(stderr)
+        #   status = False
+        status = True if not stderr else False
         return status, stderr
 
     def deploy_cleanup(self, remote_workdir):

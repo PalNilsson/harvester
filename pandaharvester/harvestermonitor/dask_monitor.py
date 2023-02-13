@@ -108,7 +108,9 @@ class DaskMonitor(PluginBase):
         time_now = datetime.datetime.utcnow()
         pods_status_list = []
         pods_name_to_delete_list = []
-
+        tmp_log.debug('called check_a_worker()')
+        if workspec.podStartTime:
+            tmp_log.debug(f'workspec.podStartTime={workspec.podStartTime}')
         # extract the namespace, scheduler and session pod names from the encoded workspec.namespace
         if workspec.namespace:
             _namespace, _scheduler_pod_name, _session_pod_name = dask_utils.extract_pod_info(workspec.namespace)
@@ -116,8 +118,33 @@ class DaskMonitor(PluginBase):
             tmp_log.debug(f'scheduler pod name={_scheduler_pod_name}')
             tmp_log.debug(f'session pod name={_session_pod_name}')
         else:
-            tmp_log.debug('workspec.namespace does not exist yet')
-            return
+            err_str = 'workspec.namespace, scheduler and session pod names are not known yet'
+            tmp_log.debug(err_str)
+            return None, err_str
+
+        if _namespace and _scheduler_pod_name and _session_pod_name:
+            # wait for the worker pods to start
+            try:
+                status, pod_info = dask_utils.await_worker_deployment(_namespace,
+                                                                      scheduler_pod_name=_scheduler_pod_name,
+                                                                      jupyter_pod_name=_session_pod_name)
+            except Exception as exc:
+                stderr = 'caught exception: %s', exc
+                tmp_log.warning(stderr)
+                pod_info = None
+                status = False
+            else:
+                # set workspec.maxWalltime when dask worker pods are running
+                # sweeper should kill everything when maxWalltime has been passed
+                workspec.maxWalltime = 900
+                workspec.podStartTime = datetime.datetime.utcnow()
+
+            #if pod_info:
+            #    for worker in pod_info:
+            #        # each pod runs a dask worker
+            #        if pod_info[worker]['start_time']
+
+        return status, stderr
 
         try:
             pods_list = []  #self.k8s_client.filter_pods_info(self._all_pods_list, job_name=job_id)

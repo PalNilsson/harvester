@@ -1034,10 +1034,12 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
     """
     Wait for all workers to start running.
 
+    pod_infp = { pod_name : { start_time: .., status: ..} }
+
     :param namespace: namespace (string).
     :param scheduler_pod_name: pod name for scheduler (string).
     :param timeout: optional time-out (int).
-    :return: True if all pods end up in Running state (Boolean), stderr (string).
+    :return: True if all pods end up in Running state (Boolean), pod info (dictionary).
     """
 
     running_workers = []
@@ -1048,6 +1050,7 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
     _sleep = 5
     processing = True
     status = True
+    pods = {}
     while processing and (now - starttime < timeout):
 
         # get the full pod info dictionary - note: not good if MANY workers
@@ -1078,6 +1081,13 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
             else:
                 if state == 'Running':
                     running_workers.append(worker_name)
+
+                pod_info = {
+                    'start_time': time.time() if state == 'Running' else '',
+                    'status': state
+                }
+                pods[worker_name] = pod_info
+
         if len(running_workers) == len(list(dictionary.keys())) - 2:
             base_logger.info('all workers are running')
             processing = False
@@ -1085,9 +1095,9 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
             time.sleep(_sleep)
             now = time.time()
 
-    base_logger.debug('number of running dask workers: %d', len(running_workers))
+    base_logger.debug(f'number of running dask workers: {len(running_workers)}')
 
-    return status
+    return status, pods
 
 def mkdirs(workdir, chmod=0o770):
     """

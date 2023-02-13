@@ -2,6 +2,7 @@ from pandaharvester.harvestercore import core_utils
 from pandaharvester.harvestersweeper.base_sweeper import BaseSweeper
 #from pandaharvester.harvestermisc.k8s_utils import k8s_Client
 from pandaharvester.harvestermisc.info_utils import PandaQueuesDict
+import datetime
 
 # logger
 base_logger = core_utils.setup_logger('dask_sweeper')
@@ -26,21 +27,10 @@ class DaskSweeper(BaseSweeper):
         for work_spec in work_spec_list:
             tmp_ret_val = (None, 'Nothing done')
 
+            time_now = datetime.datetime.utcnow()
             batch_id = work_spec.batchID
             worker_id = str(work_spec.workerID)
             if batch_id:  # sometimes there are missed workers that were not submitted
-
-                # if push mode, delete the configmap
-                if work_spec.mapType != 'NoJob':
-                    try:
-                        #self.k8s_client.delete_config_map(worker_id)
-                        tmp_log.debug('[could have] Deleted configmap {0}'.format(worker_id))
-                    except Exception as _e:
-                        err_str = 'Failed to delete a CONFIGMAP with id={0} ; {1}'.format(worker_id, _e)
-                        tmp_log.error(err_str)
-                        tmp_ret_val = (False, err_str)
-                else:
-                    tmp_log.debug('No pandajob/configmap associated to worker {0}'.format(work_spec.workerID))
 
                 # delete the job
                 try:
