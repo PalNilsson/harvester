@@ -103,6 +103,7 @@ class DaskMonitor(PluginBase):
                                    method_name='check_a_worker')
 
         # initialization
+        status = None
         job_id = workspec.batchID
         err_str = ''
         time_now = datetime.datetime.utcnow()
@@ -129,23 +130,26 @@ class DaskMonitor(PluginBase):
                                                                       scheduler_pod_name=_scheduler_pod_name,
                                                                       jupyter_pod_name=_session_pod_name)
             except Exception as exc:
-                stderr = 'caught exception: %s', exc
-                tmp_log.warning(stderr)
+                err_str = f'caught exception: {exc}'
+                tmp_log.warning(err_str)
                 pod_info = None
-                status = False
+                status = WorkSpec.ST_failed
             else:
                 # set workspec.maxWalltime when dask worker pods are running
                 # sweeper should kill everything when maxWalltime has been passed
-                workspec.maxWalltime = 900
-                workspec.podStartTime = datetime.datetime.utcnow()
-                tmp_log.debug('set podStartTime to {workspec.podStartTime} and maxWalltime to {workspec.maxWalltime}')
-
+                if status:
+                    workspec.maxWalltime = 900
+                    workspec.podStartTime = datetime.datetime.utcnow()
+                    tmp_log.debug('set podStartTime to {workspec.podStartTime} and maxWalltime to {workspec.maxWalltime}')
+                    status = WorkSpec.ST_running
+                else:
+                    status = WorkSpec.ST_failed
             #if pod_info:
             #    for worker in pod_info:
             #        # each pod runs a dask worker
             #        if pod_info[worker]['start_time']
 
-        return status, stderr
+        return status, err_str
 
         try:
             pods_list = []  #self.k8s_client.filter_pods_info(self._all_pods_list, job_name=job_id)
