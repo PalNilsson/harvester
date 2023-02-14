@@ -138,6 +138,7 @@ class DaskMonitor(PluginBase):
                 # sweeper should kill everything when maxWalltime has been passed
                 workspec.maxWalltime = 900
                 workspec.podStartTime = datetime.datetime.utcnow()
+                tmp_log.debug('set podStartTime to {workspec.podStartTime} and maxWalltime to {workspec.maxWalltime}')
 
             #if pod_info:
             #    for worker in pod_info:

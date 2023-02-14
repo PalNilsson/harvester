@@ -1055,16 +1055,17 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
     """
 
     running_workers = []
-
-    stderr = ''
     starttime = time.time()
     now = starttime
     _sleep = 5
     processing = True
     status = True
     pods = {}
+    counter = 0
     while processing and (now - starttime < timeout):
 
+        if counter == 0:
+            base_logger.debug(f'awaiting worker start since {time.time() - starttime} seconds')
         # get the full pod info dictionary - note: not good if MANY workers
         status, stdout, stderr = kubectl_execute(cmd='get pods', namespace=namespace)
         if not status:
@@ -1083,16 +1084,21 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
             workers_list.remove(running_worker)
 
         # check the states
+        if counter == 0:
+            base_logger.debug(f'counter={counter} workers_list={workers_list}')
         for worker_name in workers_list:
             # is the worker in Running state?
             try:
                 state = dictionary[worker_name]['STATUS']
             except KeyError as exc:
-                stderr = 'caught exception: %s', exc
+                stderr = 'caught exception: {exc}'
                 base_logger.warning(stderr)
             else:
                 if state == 'Running':
                     running_workers.append(worker_name)
+                    #base_logger.debug(f'{worker_name} is in state \"{state}\"')
+                if counter == 0:
+                    base_logger.debug(f'{worker_name} is in state \"{state}\"')
 
                 pod_info = {
                     'start_time': time.time() if state == 'Running' else '',
@@ -1106,6 +1112,10 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
         else:
             time.sleep(_sleep)
             now = time.time()
+            counter += 1
+            if counter >= 10:
+                counter = 0
+                base_logger.debug('number of running workers: {len(running_workers)}')
 
     base_logger.debug(f'number of running dask workers: {len(running_workers)}')
 
