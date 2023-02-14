@@ -309,11 +309,23 @@ def _convert_to_dict(stdout):
     """
 
     dictionary = {}
+
+    def remove_parentheses(_line):
+        # find all parentheses
+        items = re.findall('\(.*?\)', _line)
+        if items:
+            for item in items:
+                _line = _line.replace(item, '')
+        return _line.strip()
+
     first_line = []
     for line in stdout.split('\n'):
         if not line:
             continue
         try:
+            # remove any parentheses, e.g. from 'dask-scheduler   1/1     Running     19 (9m22s ago)   3h20m'
+            line = remove_parentheses(line)
+
             # Remove empty entries from list (caused by multiple \t)
             _l = re.sub(' +', ' ', line)
             _l = [_f for _f in _l.split(' ') if _f]
