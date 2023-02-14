@@ -1111,6 +1111,7 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
 
     return status, pods
 
+
 def mkdirs(workdir, chmod=0o770):
     """
     Create a directory.
@@ -1129,7 +1130,11 @@ def mkdirs(workdir, chmod=0o770):
     except Exception as exc:
         raise exc
     else:
-        base_logger.info(f'created directory {workdir}')
+        if os.path.exists(workdir):
+            base_logger.info(f'created directory {workdir}')
+        else:
+            raise OSError(f'failed to create directory {workdir}')
+
 
 def to_dict(job_spec):
     """
