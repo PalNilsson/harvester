@@ -347,6 +347,13 @@ class DaskSubmitter(PluginBase):
         timing = {'t0': time.time()}
         tmp_return_value = (False, 'error diagnostics not set')
 
+        if work_spec.status == WorkSpec.ST_running or work_spec.status == WorkSpec.ST_failed:
+            err_str = 'this job has already been processed'
+            tmp_log.debug(err_str)
+            return (False, err_str)
+        else:
+            tmp_log.debug(f'workspec.status={work_spec.status}')
+
         # get info from harvester queue config
         _queueConfigMapper = QueueConfigMapper()
         harvester_queue_config = _queueConfigMapper.get_queue(self.queueName)
