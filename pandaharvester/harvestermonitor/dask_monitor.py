@@ -39,7 +39,7 @@ class DaskMonitor(PluginBase):
         try:
             self.podQueueTimeLimit
         except AttributeError:
-            self.podQueueTimeLimit = 172800
+            self.podQueueTimeLimit = 300  #172800
 
         self._all_pods_list = []
 
@@ -123,7 +123,8 @@ class DaskMonitor(PluginBase):
             tmp_log.debug(err_str)
             return None, err_str
 
-        if _namespace and _scheduler_pod_name and _session_pod_name:
+        tmp_log.debug(f'workspec.status={workspec.status}')
+        if _namespace and _scheduler_pod_name and _session_pod_name and workspec.status != WorkSpec.ST_running:
             # wait for the worker pods to start
             try:
                 status, pod_info = dask_utils.await_worker_deployment(_namespace,
@@ -140,14 +141,20 @@ class DaskMonitor(PluginBase):
                 if status:
                     workspec.maxWalltime = 900
                     workspec.podStartTime = datetime.datetime.utcnow()
-                    tmp_log.debug('set podStartTime to {workspec.podStartTime} and maxWalltime to {workspec.maxWalltime}')
+                    tmp_log.debug(f'set podStartTime to {workspec.podStartTime} and maxWalltime to {workspec.maxWalltime}')
                     status = WorkSpec.ST_running
                 else:
                     status = WorkSpec.ST_failed
+            workspec.set_status(status)
             #if pod_info:
             #    for worker in pod_info:
             #        # each pod runs a dask worker
             #        if pod_info[worker]['start_time']
+        else:
+            tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')
+        if time_now - workspec.podStartTime > datetime.timedelta(seconds=self.podQueueTimeLimit):
+            tmp_log.debug('worker is out of time - {time_now - workspec.podStartTime} s have passed since start')
+            # clean up
 
         return status, err_str
 
