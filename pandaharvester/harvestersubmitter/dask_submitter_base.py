@@ -22,7 +22,7 @@ from pandaharvester.harvestercore import core_utils
 from pandaharvester.harvestermisc import dask_utils
 
 # logger
-base_logger = core_utils.setup_logger('dask_submitter')
+base_logger = core_utils.setup_logger('dask_submitter_base')
 
 # internal error codes
 ERROR_NAMESPACE = 1
