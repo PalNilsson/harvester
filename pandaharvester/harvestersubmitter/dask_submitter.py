@@ -407,7 +407,7 @@ class DaskSubmitter(PluginBase):
                 return (False, err_str)
 
             # get the walltime limit
-            max_time = self.get_maxtime(this_panda_queue_dict)
+            # max_time = self.get_maxtime(this_panda_queue_dict)
 
             # create the scheduler and workers
 
