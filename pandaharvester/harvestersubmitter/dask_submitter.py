@@ -218,12 +218,19 @@ class DaskSubmitter(PluginBase):
 
         return exit_code, diagnostics
 
-    def place_job_def(self, job_spec):
+    def place_job_def(self, job_spec=None, scheduler_ip=None, session_ip=None):
         """
         Create and place the job definition file in the default user area.
         If self._local_workdir exists after this function has finished, it will be removed as it is no longer needed.
 
+        Scheduler IP is the internal IP number for the dask scheduler.
+        Session IP is the external IP number for the session (e.g. jupyterlab).
+        These IP numbers are added to the job definition dictionary sent to the pilot pod, which will add them to the
+        job metrics message sent to the PanDA server (updateJob instruction).
+
         :param job_spec: job spec object.
+        :param scheduler_ip: dask scheduler internal IP (string).
+        :param session_ip: session external IP (string).
         :return: exit code (int), diagnostics (string).
         """
 
@@ -234,6 +241,10 @@ class DaskSubmitter(PluginBase):
 
         tmp_log.debug(f'processing job {job_spec.PandaID} (create local and remote work directories)')
         job_spec_dict = dask_utils.to_dict(job_spec)
+        if scheduler_ip:
+            job_spec_dict['scheduler_ip'] = scheduler_ip
+        if session_ip:
+            job_spec_dict['session_ip'] = session_ip
         tmp_log.debug(f'job_spec_dict={job_spec_dict}')
 
         # pilot pod will create user space; submitter will create job definition and push it to /mnt/dask
@@ -369,17 +380,6 @@ class DaskSubmitter(PluginBase):
             tmp_log.warning(f'can only handle single dask job: found {len(job_spec_list)} jobs!')
         job_spec = job_spec_list[0]
 
-        # create the job definition both locally and remotely
-        exit_code, diagnostics = self.place_job_def(job_spec)
-        # always remove the local work dir immediately
-        if self._local_workdir and os.path.exists(self._local_workdir):
-            self.remove_local_dir(self._local_workdir)
-        if exit_code:
-            # handle error
-            err_str = f'place_job_def() failed with exit code {exit_code} (aborting)'
-            tmp_log.warning(err_str)
-            return (False, err_str)
-
         # k8s_yaml_file=/data/atlpan/k8_configs/job_prp_driver_ssd.yaml
         yaml_content = self.read_yaml_file(self.k8s_yaml_file)
         if not yaml_content:
@@ -448,7 +448,6 @@ class DaskSubmitter(PluginBase):
             if submitter:
                 info = 'not set yet'
                 exitcode, service_info, diagnostics = submitter.install(timing)
-                tmp_log.debug(f'exitcode={exitcode}')
                 if exitcode:
                     err_str = f'failed with exit code={exitcode}, diagnostics={diagnostics}'
                     tmp_log.warning(err_str)
@@ -461,17 +460,25 @@ class DaskSubmitter(PluginBase):
                     tmp_return_value = (False, err_str)
                 elif service_info:
                     # IP numbers should now be known
-                    info = '\n********************************************************'
-                    info += '\nuser id: %s' % userid
-                    info += '\ndask scheduler has external ip %s' % service_info['dask-scheduler'].get(
-                        'external_ip')
-                    info += '\ndask scheduler has internal ip %s' % service_info['dask-scheduler'].get(
-                        'internal_ip')
+                    info = '\ndask scheduler has external ip %s' % service_info['dask-scheduler'].get('external_ip')
+                    info += '\ndask scheduler has internal ip %s' % service_info['dask-scheduler'].get('internal_ip')
                     info += '\njupyterlab has external ip %s' % service_info['jupyterlab'].get('external_ip')
                     tmp_log.info(info)
 
-                    # communicate IP numbers to ... ???
-                    # ..
+                    # communicate IP numbers to pilot pod via the job definition
+                    # i.e. now it's time to place the job definition in the shared area, /mnt/dask/[job id]
+                    # create the job definition both locally and remotely
+                    exit_code, diagnostics = self.place_job_def(job_spec=job_spec,
+                                                                scheduler_ip=service_info['dask-scheduler'].get('internal_ip'),
+                                                                session_ip=service_info['jupyterlab'].get('external_ip'))
+                    # always remove the local work dir immediately     - WHY?
+                    if self._local_workdir and os.path.exists(self._local_workdir):
+                        self.remove_local_dir(self._local_workdir)
+                    if exit_code:
+                        # handle error
+                        err_str = f'place_job_def() failed with exit code {exit_code} (aborting)'
+                        tmp_log.warning(err_str)
+                        tmp_return_value = (False, err_str)
 
                 # done, cleanup and exit
                 if interactive_mode:
