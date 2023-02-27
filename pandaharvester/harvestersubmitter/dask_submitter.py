@@ -440,11 +440,13 @@ class DaskSubmitter(PluginBase):
                                           password=password,
                                           interactive_mode=interactive_mode,
                                           session_type=session_type,
-                                          workdir=harvester_workdir,
+                                          local_workdir=harvester_workdir,
+                                          remote_workdir=self._remote_workdir,
                                           userid=userid,
                                           namespace=namespace,
                                           pandaid=job_spec.PandaID,
-                                          workspec=work_spec)
+                                          workspec=work_spec,
+                                          queuename=self.queueName)
             if submitter:
                 info = 'not set yet'
                 exitcode, service_info, diagnostics = submitter.install(timing)

@@ -828,16 +828,20 @@ spec:
     return yaml
 
 
-def get_pilot_yaml(image_source=None, nfs_path=None, namespace=None, scheduler_ip=None, user_id=None, panda_id=None):
+def get_pilot_yaml(image_source=None, nfs_path=None, namespace=None, user_id=None, workflow=None, queue=None, lifetime=None, cert_dir=None, proxy=None, workdir=None):
     """
     Return the yaml for the Pilot X for a given image and the path to the shared file system.
 
     :param image_source: image source (string).
     :param nfs_path: NFS path (string).
     :param namespace: namespace (string).
-    :param scheduler_ip: dask scheduler IP (string).
     :param user_id: user id (string).
-    :param panda_id: PanDA id (string).
+    :param workflow: pilot workflow (stager or generic) (string).
+    :param queue: PanDA queue name (string).
+    :param lifetime: maximum pilot lifetime (seconds) (int).
+    :param cert_dir: grid certificate directory (string).
+    :param proxy: path to grid proxy (string).
+    :param workdir: remote work directory (string).
     :return: yaml (string).
     """
 
@@ -850,14 +854,20 @@ def get_pilot_yaml(image_source=None, nfs_path=None, namespace=None, scheduler_i
     if not namespace:
         base_logger.warning('namespace must be set')
         return ""
-    if not scheduler_ip:
-        base_logger.warning('dask scheduler IP must be set')
-        return ""
     if not user_id:
         base_logger.warning('user id must be set')
         return ""
-    if not panda_id:
-        base_logger.warning('PanDA id must be set')
+    if not workflow:
+        base_logger.warning('workflow must be set')
+        return ""
+    if not queue:
+        base_logger.warning('PanDA queue must be set')
+        return ""
+    if not lifetime:
+        base_logger.warning('pilot lifetime must be set')
+        return ""
+    if not workdir:
+        base_logger.warning('remote workdir must be set')
         return ""
 
     yaml = """
@@ -872,12 +882,20 @@ spec:
   - name: dask-pilot
     image: CHANGE_IMAGE_SOURCE
     env:
-    - name: DASK_SCHEDULER_IP
-      value: "CHANGE_DASK_SCHEDULER_IP"
+    - name: PILOT_WORKFLOW
+      value: "CHANGE_WORKFLOW"
     - name: DASK_SHARED_FILESYSTEM_PATH
       value: "CHANGE_NFS_PATH"
-    - name: PANDA_ID
-      value: "CHANGE_PANDA_ID"
+    - name: PILOT_QUEUE
+      value: "CHANGE_QUEUE"
+    - name: PILOT_LIFETIME
+      value: "CHANGE_LIFETIME"
+    - name: PILOT_WORKDIR
+      value: "CHANGE_WORKDIR"
+    - name: PILOT_JOB_LABEL
+      value: user
+    - name: PILOT_USER
+      value: atlas
     volumeMounts:
     - mountPath: CHANGE_NFS_PATH
       name: fileserver-CHANGE_USERID
@@ -889,11 +907,13 @@ spec:
 """
 
     yaml = yaml.replace('CHANGE_IMAGE_SOURCE', image_source)
-    yaml = yaml.replace('CHANGE_DASK_SCHEDULER_IP', scheduler_ip)
     yaml = yaml.replace('CHANGE_NFS_PATH', nfs_path)
-    yaml = yaml.replace('CHANGE_PANDA_ID', panda_id)
     yaml = yaml.replace('CHANGE_NAMESPACE', namespace)
     yaml = yaml.replace('CHANGE_USERID', user_id)
+    yaml = yaml.replace('CHANGE_WORKFLOW', workflow)
+    yaml = yaml.replace('CHANGE_QUEUE', queue)
+    yaml = yaml.replace('CHANGE_LIFETIME', lifetime)
+    yaml = yaml.replace('CHANGE_WORKDIR', workdir)
 
     return yaml
 

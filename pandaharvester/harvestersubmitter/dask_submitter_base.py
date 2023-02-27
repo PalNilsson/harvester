@@ -49,6 +49,7 @@ class DaskSubmitterBase(object):
     _interactive_mode = None
     _session_type = None
     _workdir = None
+    _remote_workdir = None
     _nfs_server = None
     _files = None
     _images = None
@@ -56,6 +57,7 @@ class DaskSubmitterBase(object):
     _ports = None
     _pandaid = None
     _workspec = None
+    _queuename = None
 
     # constructor
     def __init__(self, **kwargs):
@@ -70,16 +72,19 @@ class DaskSubmitterBase(object):
         self._password = kwargs.get('password')
         self._interactive_mode = kwargs.get('interactive_mode', True)
         self._session_type = kwargs.get('session_type', 'jupyterlab')
-        self._workdir = kwargs.get('workdir')
+        self._local_workdir = kwargs.get('local_workdir')
+        self._remote_workdir = kwargs.get('remote_workdir')
         self._nfs_server = kwargs.get('nfs_server', '10.226.152.66')
         self._pandaid = kwargs.get('pandaid')
         self._workspec = kwargs.get('workspec')
+        self._queuename = kwargs.get('queuename')
 
         self._files = {  # pandaid will be added (amd dask worker id in the case of 'dask-worker')
             'dask-scheduler-service': '%d-dask-scheduler-service.yaml',
             'dask-scheduler': '%d-dask-scheduler-deployment.yaml',
             'dask-worker': '%d-dask-worker-deployment-%d.yaml',
             'dask-pilot': '%d-dask-pilot-deployment.yaml',
+            'pilot-image': '%d-pilot-deployment.yaml',
             'jupyterlab-service': '%d-jupyterlab-service.yaml',
             'jupyterlab': '%d-jupyterlab-deployment.yaml',
             'namespace': '%d-namespace.json',
@@ -92,6 +97,7 @@ class DaskSubmitterBase(object):
             'dask-scheduler': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-scheduler:latest',
             'dask-worker': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker:latest',
             'dask-pilot': 'palnilsson/dask-pilot:latest',
+            'pilot-image': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/pilot-image:latest',
             'jupyterlab': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/datascience-notebook:latest',
             'remote-cleanup': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/remote-cleanup:latest',
         }
@@ -101,6 +107,7 @@ class DaskSubmitterBase(object):
             'dask-scheduler': 'dask-scheduler',
             'dask-worker': 'dask-worker',
             'dask-pilot': 'dask-pilot',
+            'pilot-image': 'pilot-image',
             'jupyterlab-service': 'jupyterlab',
             'jupyterlab': 'jupyterlab',
             'remote-cleanup': 'remote-cleanup',
@@ -149,7 +156,7 @@ class DaskSubmitterBase(object):
         :return: True if successful, stderr (Boolean, string).
         """
 
-        namespace_filename = os.path.join(self._workdir, self._files.get('namespace') % self._pandaid)
+        namespace_filename = os.path.join(self._local_workdir, self._files.get('namespace') % self._pandaid)
         base_logger.debug(f'namespace_filename={namespace_filename}, namespace={self._namespace}')
         return dask_utils.create_namespace(self._namespace, namespace_filename)
 
@@ -167,7 +174,7 @@ class DaskSubmitterBase(object):
             return False, stderr
 
         # create the yaml file
-        path = os.path.join(os.path.join(self._workdir, self._files.get(name) % self._pandaid))
+        path = os.path.join(os.path.join(self._local_workdir, self._files.get(name) % self._pandaid))
         func = dask_utils.get_pvc_yaml if name == 'pvc' else dask_utils.get_pv_yaml
         yaml = func(namespace=self._namespace, user_id=self._userid, nfs_server=self._nfs_server)
         status = dask_utils.write_file(path, yaml)
@@ -205,7 +212,7 @@ class DaskSubmitterBase(object):
         # create yaml
         name += '-service'
         func = dask_utils.get_scheduler_yaml if name == 'dask-scheduler-service' else dask_utils.get_jupyterlab_yaml
-        path = os.path.join(self._workdir, fname)
+        path = os.path.join(self._local_workdir, fname)
         yaml = func(image_source=image,
                     nfs_path=self._mountpath,
                     namespace=self._namespace,
@@ -253,7 +260,7 @@ class DaskSubmitterBase(object):
                                                         self._userid,
                                                         self._images.get('dask-worker', 'unknown'),
                                                         self._mountpath,
-                                                        self._workdir,
+                                                        self._local_workdir,
                                                         self._pandaid)
         if not worker_info:
             base_logger.warning('failed to deploy workers: %s', stderr)
@@ -281,7 +288,7 @@ class DaskSubmitterBase(object):
         """
 
         # create cleanup yaml
-        path = os.path.join(self._workdir, self._files.get('remote-cleanup') % self._pandaid)
+        path = os.path.join(self._local_workdir, self._files.get('remote-cleanup') % self._pandaid)
         yaml = dask_utils.get_remote_cleanup_yaml(image_source=self._images.get('remote-cleanup', 'unknown'),
                                                   nfs_path=self._mountpath,
                                                   namespace=self._namespace,
@@ -303,22 +310,26 @@ class DaskSubmitterBase(object):
 
         return dask_utils.wait_until_deployment(name=self._podnames.get('remote-cleanup', 'unknown'), state='Completed|Terminated', namespace=self._namespace)
 
-    def deploy_pilot(self, scheduler_ip):
+    def deploy_pilot(self):
         """
         Deploy the pilot pod.
 
-        :param scheduler_ip: dash scheduler IP (string).
         :return: True if successful (Boolean), [None], stderr (string).
         """
 
         # create pilot yaml
-        path = os.path.join(self._workdir, self._files.get('dask-pilot') % self._pandaid)
-        yaml = dask_utils.get_pilot_yaml(image_source=self._images.get('dask-pilot', 'unknown'),
-                                        nfs_path=self._mountpath,
-                                        namespace=self._namespace,
-                                        user_id=self._userid,
-                                        scheduler_ip=scheduler_ip,
-                                        panda_id=self._pandaid)
+        path = os.path.join(self._local_workdir, self._files.get('pilot-image') % self._pandaid)
+        yaml = dask_utils.get_pilot_yaml(image_source=self._images.get('pilot-image', 'unknown'),
+                                         nfs_path=self._mountpath,
+                                         namespace=self._namespace,
+                                         user_id=self._userid,
+                                         workflow=self.get_pilot_workflow(),
+                                         queue=self._queuename,
+                                         lifetime=100,
+                                         cert_dir=None,
+                                         proxy=None,
+                                         workdir=self._remote_workdir
+                                         )
         status = dask_utils.write_file(path, yaml, mute=False)
         if not status:
             stderr = 'cannot continue since pilot yaml file could not be created'
@@ -333,7 +344,18 @@ class DaskSubmitterBase(object):
         else:
             base_logger.debug('created pilot pod')
 
-        return dask_utils.wait_until_deployment(name=self._podnames.get('dask-pilot', 'unknown'), state='Running', namespace=self._namespace)
+        return dask_utils.wait_until_deployment(name=self._podnames.get('pilot-image', 'unknown'), state='Running', namespace=self._namespace)
+
+    def get_pilot_workflow(self):
+        """
+        Return the proper label for the pilot workflow.
+
+        The function will return workflow='stager' for interactive mode and 'generic' for non-interactive mode.
+
+        :return: 'stager' or 'generic' (string).
+        """
+
+        return 'stager' if self._interactive_mode else 'generic'
 
     def copy_bundle(self):
         """
@@ -368,7 +390,7 @@ class DaskSubmitterBase(object):
 
         _stderr = ''
 
-        path = os.path.join(self._workdir, self._files.get(servicename) % self._pandaid)
+        path = os.path.join(self._local_workdir, self._files.get(servicename) % self._pandaid)
         yaml = dask_utils.get_service_yaml(namespace=self._namespace,
                                           name=self._podnames.get(servicename, 'unknown'),
                                           port=port,
@@ -540,10 +562,10 @@ class DaskSubmitterBase(object):
         #######################################
 
         # deploy the pilot pod
-        status, _, stderr = self.deploy_pilot(service_info['dask-scheduler-service'].get('internal_ip'))
+        status, _, stderr = self.deploy_pilot()
 
         # time.sleep(30)
-        cmd = f'kubectl logs dask-pilot --namespace=single-user-{self._userid}'
+        cmd = f'kubectl logs pilot-image --namespace=single-user-{self._userid}'
         base_logger.debug(f'executing: {cmd}')
         ec, stdout, stderr = dask_utils.execute(cmd)
         base_logger.debug(stdout)
@@ -591,7 +613,7 @@ class DaskSubmitterBase(object):
         cmds += f'kubectl delete pv fileserver-{self._userid} --namespace=single-user-{self._userid}\n'
         cmds += f'kubectl delete namespaces single-user-{self._userid}\n'
 
-        path = os.path.join(self._workdir, f'{workerid}-cleanup.sh')
+        path = os.path.join(self._local_workdir, f'{workerid}-cleanup.sh')
         status = dask_utils.write_file(path, cmds)
         if not status:
             return False, f'write_file failed for file {path}'
@@ -654,10 +676,10 @@ class DaskSubmitterBase(object):
         # cleanup tmp files
         for filename in self._files:
             if not 'dask-worker-deployment' in self._files.get(filename):
-                path = os.path.join(self._workdir, self._files.get(filename) % self._pandaid)
+                path = os.path.join(self._local_workdir, self._files.get(filename) % self._pandaid)
                 if os.path.exists(path):
                     base_logger.debug(f'could have removed {path}')
         for worker in range(self._nworkers):
-            path = os.path.join(self._workdir, self._files.get('dask-worker') % (self._pandaid, worker))
+            path = os.path.join(self._local_workdir, self._files.get('dask-worker') % (self._pandaid, worker))
             if os.path.exists(path):
                 base_logger.debug(f'could have removed {path}')
