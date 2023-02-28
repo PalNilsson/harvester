@@ -114,17 +114,29 @@ class DaskMonitor(PluginBase):
             tmp_log.debug(f'workspec.podStartTime={workspec.podStartTime}')
         # extract the namespace, scheduler and session pod names from the encoded workspec.namespace
         if workspec.namespace:
-            _namespace, _scheduler_pod_name, _session_pod_name = dask_utils.extract_pod_info(workspec.namespace)
+            _namespace, _scheduler_pod_name, _session_pod_name, _pilot_pod_name = dask_utils.extract_pod_info(workspec.namespace)
             tmp_log.debug(f'namespace={_namespace}')
             tmp_log.debug(f'scheduler pod name={_scheduler_pod_name}')
             tmp_log.debug(f'session pod name={_session_pod_name}')
+            tmp_log.debug(f'pilot pod name={_pilot_pod_name}')
         else:
             err_str = 'workspec.namespace, scheduler and session pod names are not known yet'
             tmp_log.debug(err_str)
             return None, err_str
 
         tmp_log.debug(f'workspec.status={workspec.status}')
-        if _namespace and _scheduler_pod_name and _session_pod_name and workspec.status != WorkSpec.ST_running:
+        if _namespace and _scheduler_pod_name and _session_pod_name and _pilot_pod_name and workspec.status != WorkSpec.ST_running:
+            # wait for pilot pod to start
+            try:
+                status, _, stderr = dask_utils.wait_until_deployment(name=_pilot_pod_name, state='Running', namespace=_namespace)
+            except Exception as exc:
+                err_str = f'caught exception: {exc}'
+                tmp_log.warning(err_str)
+                pod_info = None
+                status = WorkSpec.ST_failed
+            else:
+                tmp_log.debug('pilot pod is running')
+
             # wait for the worker pods to start
             try:
                 status, pod_info = dask_utils.await_worker_deployment(_namespace,

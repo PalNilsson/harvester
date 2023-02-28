@@ -34,6 +34,7 @@ ERROR_PODFAILURE = 6
 ERROR_DASKWORKER = 7
 ERROR_MKDIR = 8
 ERROR_WRITEFILE = 9
+ERROR_PILOT = 10
 
 # submitter for Dask - one instance per panda job
 class DaskSubmitterBase(object):
@@ -319,7 +320,8 @@ class DaskSubmitterBase(object):
 
         # create pilot yaml
         path = os.path.join(self._local_workdir, self._files.get('pilot-image') % self._pandaid)
-        yaml = dask_utils.get_pilot_yaml(image_source=self._images.get('pilot-image', 'unknown'),
+        yaml = dask_utils.get_pilot_yaml(pod_name=self._podnames.get('pilot-image'),
+                                         image_source=self._images.get('pilot-image', 'unknown'),
                                          nfs_path=self._mountpath,
                                          namespace=self._namespace,
                                          user_id=self._userid,
@@ -344,7 +346,7 @@ class DaskSubmitterBase(object):
         else:
             base_logger.debug('created pilot pod')
 
-        return dask_utils.wait_until_deployment(name=self._podnames.get('pilot-image', 'unknown'), state='Running', namespace=self._namespace)
+        return True, ""
 
     def get_pilot_workflow(self):
         """
@@ -539,9 +541,17 @@ class DaskSubmitterBase(object):
         # store the scheduler pod names, so the monitor can start checking the pod statuses
         self._workspec.namespace = f"namespace={self._namespace}:" \
                                    f"dask-scheduler_pod_name={service_info['dask-scheduler'].get('pod_name')}:" \
-                                   f"session_pod_name={service_info['jupyterlab'].get('pod_name')}"
+                                   f"session_pod_name={service_info['jupyterlab'].get('pod_name')}:" \
+                                   f"pilot_pod_name={self._podnames.get('pilot-image')}"  # pilot pod not created yet
 
-        # deploy the worker pods, but do not wait for them to start (this should be done by the dask monitor)
+        # deploy the pilot pod, but do not wait for it to start (will be done by the dask monitor)
+        status, stderr = self.deploy_pilot()
+        if not status:
+            base_logger.warning(stderr)
+            self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
+            return ERROR_PILOT, {}, stderr
+
+        # deploy the worker pods, but do not wait for them to start (will be done by the dask monitor)
         status, stderr = self.deploy_dask_workers(scheduler_ip=service_info['dask-scheduler'].get('internal_ip'),
                                                   scheduler_pod_name=service_info['dask-scheduler'].get('pod_name'),
                                                   jupyter_pod_name=service_info['jupyterlab'].get('pod_name'))
@@ -550,6 +560,7 @@ class DaskSubmitterBase(object):
             base_logger.warning(stderr)
             self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
             exitcode = ERROR_DASKWORKER
+
         timing['tdaskworkers'] = time.time()
         if exitcode:
             return exitcode, {}, stderr
@@ -560,9 +571,6 @@ class DaskSubmitterBase(object):
             return exitcode, service_info, stderr
 
         #######################################
-
-        # deploy the pilot pod
-        status, _, stderr = self.deploy_pilot()
 
         # time.sleep(30)
         cmd = f'kubectl logs pilot-image --namespace=single-user-{self._userid}'

@@ -828,9 +828,9 @@ spec:
     return yaml
 
 
-def get_pilot_yaml(image_source=None, nfs_path=None, namespace=None, user_id=None, workflow=None, queue=None, lifetime=None, cert_dir=None, proxy=None, workdir=None):
+def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, namespace=None, user_id=None, workflow=None, queue=None, lifetime=None, cert_dir=None, proxy=None, workdir=None):
     """
-    Return the yaml for the Pilot X for a given image and the path to the shared file system.
+    Return the yaml for the pilot.
 
     :param image_source: image source (string).
     :param nfs_path: NFS path (string).
@@ -879,7 +879,7 @@ metadata:
 spec:
   restartPolicy: Never
   containers:
-  - name: dask-pilot
+  - name: CHANGE_POD_NAME
     image: CHANGE_IMAGE_SOURCE
     env:
     - name: PILOT_WORKFLOW
@@ -906,6 +906,7 @@ spec:
       readOnly: false
 """
 
+    yaml = yaml.replace('CHANGE_POD_NAME', pod_name)
     yaml = yaml.replace('CHANGE_IMAGE_SOURCE', image_source)
     yaml = yaml.replace('CHANGE_NFS_PATH', nfs_path)
     yaml = yaml.replace('CHANGE_NAMESPACE', namespace)
@@ -1106,6 +1107,9 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
         # check the states
         if counter == 0:
             base_logger.debug(f'counter={counter} workers_list={workers_list}')
+
+        # is pilot pod running? if so, remove it from the list
+
         for worker_name in workers_list:
             # is the worker in Running state?
             try:
@@ -1245,23 +1249,25 @@ def to_dict(job_spec):
 
 def extract_pod_info(namespace):
     """
-    Extract the actual namespace, scheduler pod name and session pod name encoded in the work spec namespace variable.
+    Extract the actual namespace, scheduler, session and pilot pod names encoded in the work spec namespace variable.
     The 'session' would typically be jupyterlab.
 
     :param namespace: encoded name space (string).
-    :return: actual name space (string), scheduler pod name (string), session pod name (string).
+    :return: actual name space (string), scheduler pod name (string), session pod name (string), pilot pod name (string).
     """
 
     _namespace = ''
     _scheduler_pod_name = ''
     _session_pod_name = ''
-    pattern = r'namespace\=(.+)\:dask\-scheduler\_pod\_name\=(.+)\:session\_pod\_name\=(.+)'
+    _pilot_pod_name = ''
+    pattern = r'namespace\=(.+)\:dask\-scheduler\_pod\_name\=(.+)\:session\_pod\_name\=(.+)\:pilot\_pod\_name\=(.+)'
     try:
         info = re.findall(pattern, namespace)
         _namespace = info[0][0]
         _scheduler_pod_name = info[0][1]
         _session_pod_name = info[0][2]
+        _pilot_pod_name = info[0][3]
     except Exception as exc:
         print(f'failed to extract pod info from namespace={namespace}: {exc}')
 
-    return _namespace, _scheduler_pod_name, _session_pod_name
+    return _namespace, _scheduler_pod_name, _session_pod_name, _pilot_pod_name
