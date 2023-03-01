@@ -251,7 +251,7 @@ class DaskSubmitter(PluginBase):
         # where it will be discovered by the pilot pod (who will know the job id and therefore which job def to pull)
         # for now, only push the job def to /mnt/dask on the shared file system
 
-        # create the job work dir locally, place the job def in it and move it recursively to the remote shared file system
+        # create the job work dir locally
         # the local directory can be removed once it has been moved to the remote location
         self._tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
         self._local_workdir = os.path.join(self._tmpdir, f'{job_spec.PandaID}')
@@ -261,6 +261,7 @@ class DaskSubmitter(PluginBase):
             if exit_code != 0:
                 return exit_code, diagnostics
 
+        # place the job def in the local workdir and move it recursively to the remote shared file system
         filepath = os.path.join(self._local_workdir, f'pandaJobData.out')
         try:
             # create job def in local dir - to be moved to remove location
@@ -409,9 +410,7 @@ class DaskSubmitter(PluginBase):
             # get the walltime limit
             # max_time = self.get_maxtime(this_panda_queue_dict)
 
-            # create the scheduler and workers
-
-            # input parameters [to be passed to the script]
+            # input parameters [to be passed to the install function]
             harvester_workdir = os.environ.get('HARVESTER_WORKDIR', '/data/atlpan/harvester/workdir')
             nworkers = 2  # number of dask workers
             interactive_mode = True  # True means interactive jupyterlab session, False means pilot pod runs user payload

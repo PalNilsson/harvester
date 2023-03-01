@@ -567,21 +567,20 @@ class DaskSubmitterBase(object):
         base_logger.info('deployed all dask-worker pods')
 
         # return the jupyterlab and dask scheduler IPs to the user in interactive mode
-        if self._interactive_mode:
-            return exitcode, service_info, stderr
+        return exitcode, service_info, stderr
 
         #######################################
 
         # time.sleep(30)
-        cmd = f'kubectl logs pilot-image --namespace=single-user-{self._userid}'
-        base_logger.debug(f'executing: {cmd}')
-        ec, stdout, stderr = dask_utils.execute(cmd)
-        base_logger.debug(stdout)
+        #cmd = f'kubectl logs pilot-image --namespace=single-user-{self._userid}'
+        #base_logger.debug(f'executing: {cmd}')
+        #ec, stdout, stderr = dask_utils.execute(cmd)
+        #base_logger.debug(stdout)
 
-        if not status:
-            self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
-            exit(-1)
-        base_logger.info('deployed pilot pod')
+        #if not status:
+        #    self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
+        #    exit(-1)
+        #base_logger.info('deployed pilot pod')
 
         return exitcode, stderr
 
