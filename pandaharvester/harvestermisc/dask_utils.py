@@ -915,7 +915,7 @@ spec:
     yaml = yaml.replace('CHANGE_USERID', user_id)
     yaml = yaml.replace('CHANGE_WORKFLOW', workflow)
     yaml = yaml.replace('CHANGE_QUEUE', queue)
-    yaml = yaml.replace('CHANGE_LIFETIME', lifetime)
+    yaml = yaml.replace('CHANGE_LIFETIME', str(lifetime))
     yaml = yaml.replace('CHANGE_WORKDIR', workdir)
 
     return yaml
