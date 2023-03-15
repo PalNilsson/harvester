@@ -347,7 +347,7 @@ class DaskSubmitter(PluginBase):
 
         # the local directory can be removed once the job spec has been moved to the remote location
         self._tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
-        self._local_workdir = os.path.join(self._tmpdir, f'{job_spec.pandaid}')
+        self._local_workdir = os.path.join(self._tmpdir, f'{pandaid}')
         dirs = [self._tmpdir, self._local_workdir]
         for directory in dirs:
             exit_code, diagnostics = self.makedir(directory)
