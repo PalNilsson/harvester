@@ -876,7 +876,7 @@ def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, nam
 apiVersion: v1
 kind: Pod
 metadata:
-  name: dask-pilot
+  name: CHANGE_POD_NAME
   namespace: CHANGE_NAMESPACE
 spec:
   restartPolicy: Never
