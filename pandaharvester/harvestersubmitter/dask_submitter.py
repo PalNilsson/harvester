@@ -335,7 +335,7 @@ class DaskSubmitter(PluginBase):
         else:
             tmp_log.info(f'removed local directory {directory}')
 
-    def create_workdir(self):
+    def create_workdir(self, pandaid):
         """
         Create the local workdir.
 
@@ -347,7 +347,7 @@ class DaskSubmitter(PluginBase):
 
         # the local directory can be removed once the job spec has been moved to the remote location
         self._tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
-        self._local_workdir = os.path.join(self._tmpdir, f'{job_spec.PandaID}')
+        self._local_workdir = os.path.join(self._tmpdir, f'{job_spec.pandaid}')
         dirs = [self._tmpdir, self._local_workdir]
         for directory in dirs:
             exit_code, diagnostics = self.makedir(directory)
@@ -459,7 +459,7 @@ class DaskSubmitter(PluginBase):
             tmp_log.debug(f'user image={user_image}')
 
             # create the job work dir locally
-            exit_code, diagnostics = self.create_workdir()
+            exit_code, diagnostics = self.create_workdir(job_spec.PandaID)
             if exit_code != 0:
                 return exit_code, diagnostics
 
