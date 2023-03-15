@@ -161,6 +161,7 @@ def kubectl_execute(cmd=None, filename=None, pod=None, namespace=None):
     :return: True if success, stdout, stderr (Boolean, string, string).
     """
 
+    base_logger.debug(f'kubectl_execute: cmd={cmd}, filename={filename}, pod={pod}, namespace={namespace}')
     if not cmd:
         stderr = 'kubectl command not set not set'
         base_logger.warning(stderr)
@@ -180,12 +181,13 @@ def kubectl_execute(cmd=None, filename=None, pod=None, namespace=None):
     if cmd in ['get pods', 'logs']:
         execmd += ' --namespace=%s' % namespace
 
-    # base_logger.debug('executing: %s', execmd)
+    base_logger.debug('executing: %s', execmd)
     exitcode, stdout, stderr = execute(execmd)
     if exitcode and stderr:
         base_logger.warning('failed:\n%s', stderr)
         status = False
     else:
+        base_logger.debug(f'finished executing command: {execmd}')
         status = True
 
     return status, stdout, stderr

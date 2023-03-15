@@ -407,6 +407,11 @@ class DaskSubmitter(PluginBase):
             tmp_log.warning(f'can only handle single dask job: found {len(job_spec_list)} jobs!')
         job_spec = job_spec_list[0]
 
+        # create the job work dir locally
+        exit_code, diagnostics = self.create_workdir(job_spec.PandaID)
+        if exit_code != 0:
+            return exit_code, diagnostics
+
         # k8s_yaml_file=/data/atlpan/k8_configs/job_prp_driver_ssd.yaml
         # yaml_content = self.read_yaml_file(self.k8s_yaml_file)
         #if not yaml_content:
@@ -457,11 +462,6 @@ class DaskSubmitter(PluginBase):
             # get the user image, if set
             user_image = self.get_user_image(job_spec)
             tmp_log.debug(f'user image={user_image}')
-
-            # create the job work dir locally
-            exit_code, diagnostics = self.create_workdir(job_spec.PandaID)
-            if exit_code != 0:
-                return exit_code, diagnostics
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')

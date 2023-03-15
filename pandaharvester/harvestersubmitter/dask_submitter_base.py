@@ -333,15 +333,17 @@ class DaskSubmitterBase(object):
                                          workdir=self._remote_workdir
                                          )
         status = dask_utils.write_file(path, yaml, mute=False)
-        if not status:
-            stderr = 'cannot continue since pilot yaml file could not be created'
+        if not status or not os.path.exists(path):
+            stderr = f'cannot continue since pilot yaml file {path} could not be created'
             base_logger.warning(stderr)
             return False, stderr
+        else:
+            base_logger.debug(f'created {path}')
 
         # start the pilot pod
         status, _, stderr = dask_utils.kubectl_create(filename=path)
         if not status:
-            base_logger.warning('failed to create pilot pod: %s', stderr)
+            base_logger.warning(f'failed to create pilot pod in namespace {self._namespace}: {stderr}')
             return False, stderr
         else:
             base_logger.debug('created pilot pod')
