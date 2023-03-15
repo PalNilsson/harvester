@@ -354,6 +354,18 @@ class DaskSubmitter(PluginBase):
 
         return exit_code, diagnostics
 
+    def get_number_of_namespaces(self):
+        """
+
+        """
+
+        nspaces = 0
+        _, stdout, _ = dask_utils.execute("kubectl get namespaces")
+        if stdout:
+            nspaces = len(dask_utils._convert_to_dict(stdout))
+
+        return nspaces
+
     def submit_harvester_worker(self, work_spec):
         """
         Submit the harvester worker.
@@ -367,6 +379,11 @@ class DaskSubmitter(PluginBase):
         tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='submit_harvester_worker')
         timing = {'t0': time.time()}
         tmp_return_value = (False, 'error diagnostics not set')
+
+        nspace = self.get_number_of_namespaces()
+        tmp_log.debug(f'there are {nspace} namespaces')
+        if nspace > 4:
+            tmp_log.debug('should probably return for now')
 
         if work_spec.status == WorkSpec.ST_running or work_spec.status == WorkSpec.ST_failed:
             err_str = 'this job has already been processed'
