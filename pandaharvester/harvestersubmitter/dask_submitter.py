@@ -274,9 +274,6 @@ class DaskSubmitter(PluginBase):
             tmp_log.error(diagnostics)
             exit_code = ERROR_WRITEFILE
             return exit_code, diagnostics
-        else:
-            # store the remote directory path for later removal (return error code in case of failure)
-            return self.store_remote_directory_path(job_spec.PandaID)
 
         return exit_code, diagnostics
 
@@ -462,6 +459,10 @@ class DaskSubmitter(PluginBase):
             # get the user image, if set
             user_image = self.get_user_image(job_spec)
             tmp_log.debug(f'user image={user_image}')
+
+            # store the remote directory path for later removal (return error code in case of failure)
+            # exit_code, diagnostics = store_remote_directory_path(job_spec.PandaID)
+            self._remote_workdir = os.path.join(self._mountpath, job_spec.PandaID)
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
