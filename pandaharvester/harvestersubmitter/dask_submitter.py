@@ -251,16 +251,6 @@ class DaskSubmitter(PluginBase):
         # where it will be discovered by the pilot pod (who will know the job id and therefore which job def to pull)
         # for now, only push the job def to /mnt/dask on the shared file system
 
-        # create the job work dir locally
-        # the local directory can be removed once it has been moved to the remote location
-        self._tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
-        self._local_workdir = os.path.join(self._tmpdir, f'{job_spec.PandaID}')
-        dirs = [self._tmpdir, self._local_workdir]
-        for directory in dirs:
-            exit_code, diagnostics = self.makedir(directory)
-            if exit_code != 0:
-                return exit_code, diagnostics
-
         # place the job def in the local workdir and move it recursively to the remote shared file system
         filepath = os.path.join(self._local_workdir, f'pandaJobData.out')
         try:
@@ -344,6 +334,25 @@ class DaskSubmitter(PluginBase):
             tmp_log.warning(exc)
         else:
             tmp_log.info(f'removed local directory {directory}')
+
+    def create_workdir(self):
+        """
+        Create the local workdir.
+
+        :return: exit code (int), diagnostics (string).
+        """
+
+        exit_code = 0
+        diagnostics = ""
+
+        # the local directory can be removed once the job spec has been moved to the remote location
+        self._tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
+        self._local_workdir = os.path.join(self._tmpdir, f'{job_spec.PandaID}')
+        dirs = [self._tmpdir, self._local_workdir]
+        for directory in dirs:
+            exit_code, diagnostics = self.makedir(directory)
+
+        return exit_code, diagnostics
 
     def submit_harvester_worker(self, work_spec):
         """
@@ -431,6 +440,11 @@ class DaskSubmitter(PluginBase):
             # get the user image, if set
             user_image = self.get_user_image(job_spec)
             tmp_log.debug(f'user image={user_image}')
+
+            # create the job work dir locally
+            exit_code, diagnostics = self.create_workdir()
+            if exit_code != 0:
+                return exit_code, diagnostics
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
