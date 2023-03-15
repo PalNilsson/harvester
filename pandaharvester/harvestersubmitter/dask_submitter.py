@@ -391,12 +391,12 @@ class DaskSubmitter(PluginBase):
         job_spec = job_spec_list[0]
 
         # k8s_yaml_file=/data/atlpan/k8_configs/job_prp_driver_ssd.yaml
-        yaml_content = self.read_yaml_file(self.k8s_yaml_file)
-        if not yaml_content:
-            # handle error
-            err_str = f'failed to read yaml file {self.k8s_yaml_file}'
-            tmp_log.warning(err_str)
-            return (False, err_str)
+        # yaml_content = self.read_yaml_file(self.k8s_yaml_file)
+        #if not yaml_content:
+        #    # handle error
+        #    err_str = f'failed to read yaml file {self.k8s_yaml_file}'
+        #    tmp_log.warning(err_str)
+        #    return (False, err_str)
 
         submitter = None
         try:
@@ -514,7 +514,7 @@ class DaskSubmitter(PluginBase):
             err_str = f'Failed to create a JOB; {exc}'
             tmp_return_value = (False, err_str)
         else:
-            work_spec.batchID = yaml_content['metadata']['name']
+            work_spec.batchID = f'kubernetes-job-{userid}'  # yaml_content['metadata']['name']
             tmp_log.debug(f'Created harvester worker {work_spec.workerID} with batchID={work_spec.batchID}')
             tmp_return_value = (True, '')
 
