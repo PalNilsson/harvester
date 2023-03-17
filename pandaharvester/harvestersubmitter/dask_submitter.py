@@ -175,7 +175,7 @@ class DaskSubmitter(PluginBase):
             cert = '/cephfs/atlpan/harvester/proxy/x509up_u25606_prod'
 
         if cert:
-            path = _mountpath.split(':')[-1]
+            path = self._mountpath.split(':')[-1]
             if path:
                 # an external script will already have copied the X509 proxy to the _remote_proxy location
                 # but the submitter need to tell the pilot where it is
