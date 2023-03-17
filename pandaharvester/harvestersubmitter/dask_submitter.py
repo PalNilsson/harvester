@@ -78,6 +78,7 @@ class DaskSubmitter(PluginBase):
     _local_workdir = ''
     _remote_workdir = ''  # only set this once the remote workdir has been created
     _mountpath = 'nfs-client:/mnt/dask'
+    _remote_proxy = ''
 
     # constructor
     def __init__(self, **kwarg):
@@ -172,6 +173,13 @@ class DaskSubmitter(PluginBase):
 
         if not cert:
             cert = '/cephfs/atlpan/harvester/proxy/x509up_u25606_prod'
+
+        if cert:
+            path = _mountpath.split(':')[-1]
+            if path:
+                # an external script will already have copied the X509 proxy to the _remote_proxy location
+                # but the submitter need to tell the pilot where it is
+                self._remote_proxy = os.path.join(path, os.path.basename(cert))  # /mnt/dask/x509up_u25606_prod
 
         return cert
 
@@ -479,7 +487,8 @@ class DaskSubmitter(PluginBase):
                                           namespace=namespace,
                                           pandaid=job_spec.PandaID,
                                           workspec=work_spec,
-                                          queuename=self.queueName)
+                                          queuename=self.queueName,
+                                          remote_proxy=self._remote_proxy)
             if submitter:
                 info = 'not set yet'
                 exitcode, service_info, diagnostics = submitter.install(timing)

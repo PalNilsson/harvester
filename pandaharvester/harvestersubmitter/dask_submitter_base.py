@@ -59,6 +59,7 @@ class DaskSubmitterBase(object):
     _pandaid = None
     _workspec = None
     _queuename = None
+    _remote_proxy = None
 
     # constructor
     def __init__(self, **kwargs):
@@ -79,6 +80,7 @@ class DaskSubmitterBase(object):
         self._pandaid = kwargs.get('pandaid')
         self._workspec = kwargs.get('workspec')
         self._queuename = kwargs.get('queuename')
+        self._remote_proxy = kwargs.get('remote_proxy')
 
         self._files = {  # pandaid will be added (amd dask worker id in the case of 'dask-worker')
             'dask-scheduler-service': '%d-dask-scheduler-service.yaml',
@@ -329,7 +331,7 @@ class DaskSubmitterBase(object):
                                          queue=self._queuename,
                                          lifetime=100,
                                          cert_dir=None,
-                                         proxy=None,
+                                         proxy=self._remote_proxy,
                                          workdir=self._remote_workdir
                                          )
         status = dask_utils.write_file(path, yaml, mute=False)

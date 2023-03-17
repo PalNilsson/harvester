@@ -871,6 +871,9 @@ def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, nam
     if not workdir:
         base_logger.warning('remote workdir must be set')
         return ""
+    if not proxy:
+        base_logger.warning('proxy must be set')
+        return ""
 
     yaml = """
 apiVersion: v1
@@ -898,6 +901,8 @@ spec:
       value: user
     - name: PILOT_USER
       value: atlas
+    - name: X509_USER_PROXY
+      value: CHANGE_PROXY
     volumeMounts:
     - mountPath: CHANGE_NFS_PATH
       name: fileserver-CHANGE_USERID
@@ -917,6 +922,7 @@ spec:
     yaml = yaml.replace('CHANGE_QUEUE', queue)
     yaml = yaml.replace('CHANGE_LIFETIME', str(lifetime))
     yaml = yaml.replace('CHANGE_WORKDIR', workdir)
+    yaml = yaml.replace('CHANGE_PROXY', proxy)
 
     return yaml
 
