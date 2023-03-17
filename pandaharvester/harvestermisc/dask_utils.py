@@ -427,7 +427,7 @@ def write_file(path, contents, mute=True, mode='w'):
     return status
 
 
-def get_pv_yaml(namespace=None, user_id=None, nfs_server='10.226.152.66'):
+def get_pv_yaml(namespace=None, user_id=None, nfs_server='10.132.0.82'):  # 10.226.152.66
     """
 
     :param namespace: namespace (string).
