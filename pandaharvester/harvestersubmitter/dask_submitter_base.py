@@ -78,6 +78,7 @@ class DaskSubmitterBase(object):
         self._remote_workdir = kwargs.get('remote_workdir')
         self._nfs_server = kwargs.get('nfs_server', '10.226.152.66')
         self._pandaid = kwargs.get('pandaid')
+        self._taskid = kwargs.get('taskid')
         self._workspec = kwargs.get('workspec')
         self._queuename = kwargs.get('queuename')
         self._remote_proxy = kwargs.get('remote_proxy')
@@ -544,6 +545,7 @@ class DaskSubmitterBase(object):
 
         # store the scheduler pod names, so the monitor can start checking the pod statuses
         self._workspec.namespace = f"namespace={self._namespace}:" \
+                                   f"taskid={self._taskid}:" \
                                    f"dask-scheduler_pod_name={service_info['dask-scheduler'].get('pod_name')}:" \
                                    f"session_pod_name={service_info['jupyterlab'].get('pod_name')}:" \
                                    f"pilot_pod_name={self._podnames.get('pilot-image')}"  # pilot pod not created yet

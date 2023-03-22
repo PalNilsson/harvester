@@ -1,4 +1,5 @@
 import datetime
+import os.path
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -16,6 +17,9 @@ BAD_CONTAINER_STATES = ['CreateContainerError', 'CrashLoopBackOff', "FailedMount
 
 # monitor for dask
 class DaskMonitor(PluginBase):
+
+    _tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
+
     # constructor
     def __init__(self, **kwarg):
         PluginBase.__init__(self, **kwarg)
@@ -114,8 +118,9 @@ class DaskMonitor(PluginBase):
             tmp_log.debug(f'workspec.podStartTime={workspec.podStartTime}')
         # extract the namespace, scheduler and session pod names from the encoded workspec.namespace
         if workspec.namespace:
-            _namespace, _scheduler_pod_name, _session_pod_name, _pilot_pod_name = dask_utils.extract_pod_info(workspec.namespace)
+            _namespace, _taskid, _scheduler_pod_name, _session_pod_name, _pilot_pod_name = dask_utils.extract_pod_info(workspec.namespace)
             tmp_log.debug(f'namespace={_namespace}')
+            tmp_log.debug(f'taskid={_taskid}')
             tmp_log.debug(f'scheduler pod name={_scheduler_pod_name}')
             tmp_log.debug(f'session pod name={_session_pod_name}')
             tmp_log.debug(f'pilot pod name={_pilot_pod_name}')
@@ -167,6 +172,7 @@ class DaskMonitor(PluginBase):
         if time_now - workspec.podStartTime > datetime.timedelta(seconds=self.podQueueTimeLimit):
             tmp_log.debug('worker is out of time - {time_now - workspec.podStartTime} s have passed since start')
             # clean up
+            dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
 
         return status, err_str
 

@@ -11,7 +11,6 @@ import re
 import json
 import argparse
 import traceback
-from shutil import rmtree
 from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor
 
@@ -71,7 +70,7 @@ class DaskSubmitter(PluginBase):
     _ispv = False  # set when PV is successfully created
     _password = None
     _interactive_mode = True
-    _tmpdir = ''
+    _tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
     _nfs_server = "10.132.0.82"  # "10.226.152.66"
     _project = "gke-dev-311213"
     _zone = "europe-west1-b"
@@ -323,23 +322,6 @@ class DaskSubmitter(PluginBase):
 
         return yaml_content
 
-    def remove_local_dir(self, directory):
-        """
-        Remove the given local directory.
-
-        :param directory: directory name (string).
-        :return:
-        """
-
-        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='remove_local_dir')
-
-        try:
-            rmtree(directory)
-        except OSError as exc:
-            tmp_log.warning(exc)
-        else:
-            tmp_log.info(f'removed local directory {directory}')
-
     def create_workdir(self, name):
         """
         Create the local workdir.
@@ -353,7 +335,6 @@ class DaskSubmitter(PluginBase):
         diagnostics = ""
 
         # the local directory can be removed once the job spec has been moved to the remote location
-        self._tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
         self._local_workdir = os.path.join(self._tmpdir, f'{name}')
         dirs = [self._tmpdir, self._local_workdir]
         for directory in dirs:
@@ -486,6 +467,7 @@ class DaskSubmitter(PluginBase):
                                           userid=userid,
                                           namespace=namespace,
                                           pandaid=job_spec.PandaID,
+                                          taskid=job_spec.taskID,
                                           workspec=work_spec,
                                           queuename=self.queueName,
                                           remote_proxy=self._remote_proxy)
@@ -515,9 +497,6 @@ class DaskSubmitter(PluginBase):
                     exit_code, diagnostics = self.place_job_def(job_spec=job_spec,
                                                                 scheduler_ip=service_info['dask-scheduler'].get('internal_ip'),
                                                                 session_ip=service_info['jupyterlab'].get('external_ip'))
-                    # always remove the local work dir immediately     - WHY?
-                    if self._local_workdir and os.path.exists(self._local_workdir):
-                        self.remove_local_dir(self._local_workdir)
                     if exit_code:
                         # handle error
                         err_str = f'place_job_def() failed with exit code {exit_code} (aborting)'

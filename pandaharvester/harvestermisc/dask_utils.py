@@ -12,6 +12,7 @@ import re
 import subprocess
 import sys
 import time
+from shutil import rmtree
 from json import dump as dumpjson
 
 from pandaharvester.harvestercore import core_utils
@@ -1257,7 +1258,7 @@ def to_dict(job_spec):
 
 def extract_pod_info(namespace):
     """
-    Extract the actual namespace, scheduler, session and pilot pod names encoded in the work spec namespace variable.
+    Extract the actual namespace, taskid, scheduler, session and pilot pod names encoded in the work spec namespace variable.
     The 'session' would typically be jupyterlab.
 
     :param namespace: encoded name space (string).
@@ -1265,17 +1266,35 @@ def extract_pod_info(namespace):
     """
 
     _namespace = ''
+    _taskid = ''
     _scheduler_pod_name = ''
     _session_pod_name = ''
     _pilot_pod_name = ''
-    pattern = r'namespace\=(.+)\:dask\-scheduler\_pod\_name\=(.+)\:session\_pod\_name\=(.+)\:pilot\_pod\_name\=(.+)'
+    pattern = r'namespace\=(.+)\:taskid\=(.+)\:dask\-scheduler\_pod\_name\=(.+)\:session\_pod\_name\=(.+)\:pilot\_pod\_name\=(.+)'
     try:
         info = re.findall(pattern, namespace)
         _namespace = info[0][0]
-        _scheduler_pod_name = info[0][1]
-        _session_pod_name = info[0][2]
-        _pilot_pod_name = info[0][3]
+        _taskid = info[0][1]
+        _scheduler_pod_name = info[0][2]
+        _session_pod_name = info[0][3]
+        _pilot_pod_name = info[0][4]
     except Exception as exc:
-        print(f'failed to extract pod info from namespace={namespace}: {exc}')
+        base_logger(f'failed to extract pod info from namespace={namespace}: {exc}')
 
-    return _namespace, _scheduler_pod_name, _session_pod_name, _pilot_pod_name
+    return _namespace, _taskid, _scheduler_pod_name, _session_pod_name, _pilot_pod_name
+
+
+def remove_local_dir(directory):
+    """
+    Remove the given local directory.
+
+    :param directory: directory name (string).
+    :return:
+    """
+
+    try:
+        rmtree(directory)
+    except OSError as exc:
+        base_logger.warning(exc)
+    else:
+        base_logger.info(f'removed local directory {directory}')
