@@ -225,7 +225,7 @@ def get_pod_name(namespace=None, pattern=r'(dask\-scheduler\-.+)'):
     return podname
 
 
-def wait_until_deployment(name=None, state=None, timeout=600, namespace=None, deployment=False, service=False):
+def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, deployment=False, service=False):
     """
     Wait until a given pod or service is in running state.
     In case the service has an external IP, return it.
