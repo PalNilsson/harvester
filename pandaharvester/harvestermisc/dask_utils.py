@@ -245,7 +245,7 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
     """
 
     if not name:
-        return None, 'unset pod/service'
+        return None, None, 'unset pod/service'
 
     base_logger.debug(f'name={name},state={state},deployment={deployment},service={service}')
     _external_ip = None
@@ -260,6 +260,7 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
     podtype = '' if service else podtype  # do not specify podtype for a service
     ip_pattern = r'[0-9]+(?:\.[0-9]+){3}'  # e.g. 1.2.3.4
     port_pattern = r'([0-9]+)\:.'  # e.g. 80:30525/TCP
+    dictionary = {}
     while processing and (now - starttime < timeout):
 
         resource = 'services' if service else name
@@ -301,6 +302,12 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
         now = time.time()
 
     status = True if (_state and _state in state) else False
+    if not status:
+        stderr = f'name={name} not running?'
+        if dictionary:
+            stderr += f' dictionary={dictionary}'
+    if dictionary and status:
+        base_logger.debug(f'last dictionary={dictionary}')
     return status, _external_ip, stderr
 
 
@@ -941,6 +948,7 @@ def get_scheduler_info(timeout=480, namespace=None):
     scheduler_ip = ""
 
     podname = get_pod_name(namespace=namespace, pattern=r'(dask\-scheduler\-.+)')
+    base_logger.debug(f'calling wait_until_deployment for name={podname}')
     status, _, stderr = wait_until_deployment(name=podname, state='Running', timeout=300, namespace=namespace, deployment=False)
     if not status:
         return scheduler_ip, podname, stderr
@@ -987,6 +995,7 @@ def get_jupyterlab_info(timeout=300, namespace=None):
     """
 
     podname = get_pod_name(namespace=namespace, pattern=r'(jupyterlab\-.+)')
+    base_logger.debug(f'calling wait_until_deployment for name={podname}')
     _, _, stderr = wait_until_deployment(name=podname, state='Running', timeout=300, namespace=namespace, deployment=False)
     if stderr:
         return '', podname, stderr

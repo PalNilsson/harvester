@@ -520,6 +520,7 @@ class DaskSubmitterBase(object):
         # for the dask scheduler, the internal IP number is needed
         # for jupyterlab, we only need to verify that it started properly
         for service in services:
+            base_logger.debug(f'calling get_service_info for service={service}')
             internal_ip, _pod_name, stderr = self.get_service_info(service)
             if stderr:
                 stderr = f'{service} pod failed: {stderr}'
