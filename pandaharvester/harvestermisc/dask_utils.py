@@ -247,6 +247,7 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
     if not name:
         return None, 'unset pod/service'
 
+    base_logger.debug(f'name={name},state={state},deployment={deployment},service={service}')
     _external_ip = None
     stderr = ''
     starttime = time.time()
@@ -263,7 +264,7 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
 
         resource = 'services' if service else name
         cmd = "kubectl get %s %s --namespace=%s" % (podtype, resource, namespace)
-        # base_logger.debug('executing cmd=\'%s\'', cmd)
+        base_logger.debug('executing cmd=\'%s\'', cmd)
         exitcode, stdout, stderr = execute(cmd)
         if stderr and stderr.lower().startswith('error'):
             base_logger.warning('failed:\n%s', stderr)
@@ -293,10 +294,10 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
                         processing = False
                         break
                 if first:
-                    base_logger.info(f'sleeping until {_name} (service) is running (timeout=%d s)', timeout)
+                    base_logger.debug(f'dictionary=\n{_dic}')
+                    base_logger.info(f'sleeping until {name} is running (check interval={_sleep} s, timeout={timeout} s)')
                     first = False
         time.sleep(_sleep)
-
         now = time.time()
 
     status = True if (_state and _state in state) else False
