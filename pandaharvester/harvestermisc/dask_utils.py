@@ -287,8 +287,8 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
                 if ip_number:
                     _external_ip = ip_number[0]
                     # add the port (e.g. PORT(S)=80:30525/TCP)
-            if 'PORT(S)' in _dic:
-                _port = _dic.get('PORT(S)')
+            if 'PORT' in _dic:
+                _port = _dic.get('PORT')
                 port_number = re.findall(port_pattern, _port)
                 if port_number and _external_ip:
                     _external_ip += ':%s' % port_number[0]
