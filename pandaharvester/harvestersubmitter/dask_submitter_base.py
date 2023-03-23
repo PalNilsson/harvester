@@ -76,7 +76,7 @@ class DaskSubmitterBase(object):
         self._session_type = kwargs.get('session_type', 'jupyterlab')
         self._local_workdir = kwargs.get('local_workdir')
         self._remote_workdir = kwargs.get('remote_workdir')
-        self._nfs_server = kwargs.get('nfs_server', '10.132.0.82')
+        self._nfs_server = kwargs.get('nfs_server', '10.132.0.83')  # client or server??
         self._pandaid = kwargs.get('pandaid')
         self._taskid = kwargs.get('taskid')
         self._workspec = kwargs.get('workspec')

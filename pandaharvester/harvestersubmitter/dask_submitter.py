@@ -71,7 +71,7 @@ class DaskSubmitter(PluginBase):
     _password = None
     _interactive_mode = True
     _tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
-    _nfs_server = "10.132.0.82"  # "10.226.152.66"
+    _nfs_server = "10.132.0.83"  # "10.132.0.82"  # "10.226.152.66"
     _project = "gke-dev-311213"
     _zone = "europe-west1-b"
     _local_workdir = ''

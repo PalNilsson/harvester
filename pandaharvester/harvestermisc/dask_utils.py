@@ -225,7 +225,7 @@ def get_pod_name(namespace=None, pattern=r'(dask\-scheduler\-.+)'):
     return podname
 
 
-def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, deployment=False, service=False):
+def wait_until_deployment(name=None, state=None, timeout=600, namespace=None, deployment=False, service=False):
     """
     Wait until a given pod or service is in running state.
     In case the service has an external IP, return it.
@@ -274,7 +274,6 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
         dictionary = _convert_to_dict(stdout)
         if dictionary:
             _dic = dictionary.get(name)
-            base_logger.debug(f'_dic=\n{_dic}')
             if 'STATUS' in _dic:
                 _state = _dic.get('STATUS')
                 if _state in state:
@@ -286,7 +285,8 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
                 ip_number = re.findall(ip_pattern, _ip)
                 if ip_number:
                     _external_ip = ip_number[0]
-                    # add the port (e.g. PORT(S)=80:30525/TCP)
+                    status = True  # only for schedulers; if external exists, then we're good
+                    # now add the port (e.g. PORT(S)=80:30525/TCP)
             if 'PORT' in _dic:
                 _port = _dic.get('PORT')
                 port_number = re.findall(port_pattern, _port)
@@ -301,13 +301,20 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
         time.sleep(_sleep)
         now = time.time()
 
-    status = True if (_state and _state in state) else False
+    if state:
+        status = True if (_state and _state in state) else False
     if not status:
         stderr = f'name={name} not running?'
         if dictionary:
             stderr += f' dictionary={dictionary}'
     if dictionary and status:
         base_logger.debug(f'last dictionary={dictionary}')
+
+    if not status:
+        cmd = f'kubectl describe pods --namespace={namespace}'
+        _, stdout, _ = execute(cmd)
+        base_logger.debug(f'{cmd}:\n{stdout}')
+
     return status, _external_ip, stderr
 
 
