@@ -272,31 +272,31 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
 
         dictionary = _convert_to_dict(stdout)
         if dictionary:
-            for _name in dictionary:  # e.g. _name = dask-scheduler-svc, kubernetes
-                _dic = dictionary.get(_name)
-                if 'STATUS' in _dic:
-                    _state = _dic.get('STATUS')
-                    if _state in state:
-                        base_logger.info(f'%s is in state {state}', _name)
-                        processing = False
-                        break
-                if 'EXTERNAL-IP' in _dic and name == _name:  # only look at the load balancer info (dask-scheduler-svc)
-                    _ip = _dic.get('EXTERNAL-IP')
-                    ip_number = re.findall(ip_pattern, _ip)
-                    if ip_number:
-                        _external_ip = ip_number[0]
-                        # add the port (e.g. PORT(S)=80:30525/TCP)
-                if 'PORT(S)' in _dic and name == _name:
-                    _port = _dic.get('PORT(S)')
-                    port_number = re.findall(port_pattern, _port)
-                    if port_number and _external_ip:
-                        _external_ip += ':%s' % port_number[0]
-                        processing = False
-                        break
-                if first:
-                    base_logger.debug(f'dictionary=\n{_dic}')
-                    base_logger.info(f'sleeping until {name} is running (check interval={_sleep} s, timeout={timeout} s)')
-                    first = False
+            _dic = dictionary.get(name)
+            base_logger.debug(f'_dic=\n{_dic}')
+            if 'STATUS' in _dic:
+                _state = _dic.get('STATUS')
+                if _state in state:
+                    base_logger.info(f'%s is in state {state}', name)
+                    processing = False
+                    break
+            if 'EXTERNAL-IP' in _dic:  # only look at the load balancer info (dask-scheduler-svc)
+                _ip = _dic.get('EXTERNAL-IP')
+                ip_number = re.findall(ip_pattern, _ip)
+                if ip_number:
+                    _external_ip = ip_number[0]
+                    # add the port (e.g. PORT(S)=80:30525/TCP)
+            if 'PORT(S)' in _dic:
+                _port = _dic.get('PORT(S)')
+                port_number = re.findall(port_pattern, _port)
+                if port_number and _external_ip:
+                    _external_ip += ':%s' % port_number[0]
+                    processing = False
+                    break
+            if first:
+                base_logger.debug(f'dictionary=\n{_dic}')
+                base_logger.info(f'sleeping until {name} is running (check interval={_sleep}s, timeout={timeout}s)')
+                first = False
         time.sleep(_sleep)
         now = time.time()
 
