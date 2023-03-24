@@ -60,6 +60,7 @@ class DaskSubmitterBase(object):
     _workspec = None
     _queuename = None
     _remote_proxy = None
+    _cert_dir = '/etc/grid-security/certificates'
 
     # constructor
     def __init__(self, **kwargs):
@@ -331,7 +332,7 @@ class DaskSubmitterBase(object):
                                          workflow=self.get_pilot_workflow(),
                                          queue=self._queuename,
                                          lifetime=100,
-                                         cert_dir=None,
+                                         cert_dir=self._cert_dir,
                                          proxy=self._remote_proxy,
                                          workdir=self._remote_workdir
                                          )

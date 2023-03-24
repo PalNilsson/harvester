@@ -887,6 +887,9 @@ def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, nam
     if not workdir:
         base_logger.warning('remote workdir must be set')
         return ""
+    if not cert_dir:
+        base_logger.warning('grid certificates directory must be set')
+        return ""
     if not proxy:
         base_logger.warning('proxy must be set')
         return ""
@@ -917,6 +920,8 @@ spec:
       value: user
     - name: PILOT_USER
       value: atlas
+    - name: X509_CERT_DIR
+      value: CHANGE_CERT
     - name: X509_USER_PROXY
       value: CHANGE_PROXY
     volumeMounts:
@@ -938,6 +943,7 @@ spec:
     yaml = yaml.replace('CHANGE_QUEUE', queue)
     yaml = yaml.replace('CHANGE_LIFETIME', str(lifetime))
     yaml = yaml.replace('CHANGE_WORKDIR', workdir)
+    yaml = yaml.replace('CHANGE_CERT', cert_dir)
     yaml = yaml.replace('CHANGE_PROXY', proxy)
 
     return yaml
