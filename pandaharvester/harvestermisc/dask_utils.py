@@ -846,7 +846,7 @@ spec:
     return yaml
 
 
-def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, namespace=None, user_id=None, workflow=None, queue=None, lifetime=None, cert_dir=None, proxy=None, workdir=None):
+def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, namespace=None, user_id=None, workflow=None, queue=None, lifetime=None, cert_dir=None, proxy=None, workdir=None, configdir=None):
     """
     Return the yaml for the pilot.
 
@@ -862,37 +862,6 @@ def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, nam
     :param workdir: remote work directory (string).
     :return: yaml (string).
     """
-
-    if not image_source:
-        base_logger.warning('image source must be set')
-        return ""
-    if not nfs_path:
-        base_logger.warning('nfs path must be set')
-        return ""
-    if not namespace:
-        base_logger.warning('namespace must be set')
-        return ""
-    if not user_id:
-        base_logger.warning('user id must be set')
-        return ""
-    if not workflow:
-        base_logger.warning('workflow must be set')
-        return ""
-    if not queue:
-        base_logger.warning('PanDA queue must be set')
-        return ""
-    if not lifetime:
-        base_logger.warning('pilot lifetime must be set')
-        return ""
-    if not workdir:
-        base_logger.warning('remote workdir must be set')
-        return ""
-    if not cert_dir:
-        base_logger.warning('grid certificates directory must be set')
-        return ""
-    if not proxy:
-        base_logger.warning('proxy must be set')
-        return ""
 
     yaml = """
 apiVersion: v1
@@ -924,6 +893,8 @@ spec:
       value: CHANGE_CERT
     - name: X509_USER_PROXY
       value: CHANGE_PROXY
+    - name: HARVESTER_PILOT_CONFIG
+      value: CHANGE_CONFIGDIR
     volumeMounts:
     - mountPath: CHANGE_NFS_PATH
       name: fileserver-CHANGE_USERID
@@ -943,6 +914,7 @@ spec:
     yaml = yaml.replace('CHANGE_QUEUE', queue)
     yaml = yaml.replace('CHANGE_LIFETIME', str(lifetime))
     yaml = yaml.replace('CHANGE_WORKDIR', workdir)
+    yaml = yaml.replace('CHANGE_CONFIGDIR', configdir)
     yaml = yaml.replace('CHANGE_CERT', cert_dir)
     yaml = yaml.replace('CHANGE_PROXY', proxy)
 
