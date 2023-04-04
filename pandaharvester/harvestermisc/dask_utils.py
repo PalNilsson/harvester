@@ -846,7 +846,7 @@ spec:
     return yaml
 
 
-def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, namespace=None, user_id=None, workflow=None, queue=None, lifetime=None, cert_dir=None, proxy=None, workdir=None, configdir=None):
+def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, namespace=None, user_id=None, workflow=None, queue=None, lifetime=None, cert_dir=None, proxy=None, workdir=None, config=None):
     """
     Return the yaml for the pilot.
 
@@ -860,6 +860,7 @@ def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, nam
     :param cert_dir: grid certificate directory (string).
     :param proxy: path to grid proxy (string).
     :param workdir: remote work directory (string).
+    :param config: pilot config path (string).
     :return: yaml (string).
     """
 
@@ -915,7 +916,7 @@ spec:
     yaml = yaml.replace('CHANGE_QUEUE', queue)
     yaml = yaml.replace('CHANGE_LIFETIME', str(lifetime))
     yaml = yaml.replace('CHANGE_WORKDIR', workdir)
-    yaml = yaml.replace('CHANGE_CONFIGDIR', configdir)
+    yaml = yaml.replace('CHANGE_CONFIGDIR', config)
     yaml = yaml.replace('CHANGE_CERT', cert_dir)
     yaml = yaml.replace('CHANGE_PROXY', proxy)
 
