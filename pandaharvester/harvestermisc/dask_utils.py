@@ -874,11 +874,11 @@ spec:
   restartPolicy: Never
   hostNetwork: true
   containers:
-  - name: nginx
-    image: nginx:latest
-    volumeMounts:
-    - name: html
-      mountPath: /usr/share/nginx/html
+#  - name: nginx
+#    image: nginx:latest
+#    volumeMounts:
+#    - name: html
+#      mountPath: /usr/share/nginx/html
   - name: pilot
     image: CHANGE_IMAGE_SOURCE
     env:
@@ -906,8 +906,8 @@ spec:
     - mountPath: CHANGE_NFS_PATH
       name: fileserver-CHANGE_USERID
   volumes:
-  - name: html
-    emptyDir: {}
+#  - name: html
+#    emptyDir: {}
   - name: fileserver-CHANGE_USERID
     persistentVolumeClaim:
       claimName: fileserver-claim
