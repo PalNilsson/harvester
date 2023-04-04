@@ -50,7 +50,7 @@ class DaskSubmitterBase(object):
     _interactive_mode = None
     _session_type = None
     _workdir = None
-    _pilot_config_dir = None
+    _pilot_config = None
     _remote_workdir = None
     _nfs_server = None
     _files = None
@@ -79,8 +79,8 @@ class DaskSubmitterBase(object):
         self._local_workdir = kwargs.get('local_workdir')
         self._remote_workdir = kwargs.get('remote_workdir')
         self._remote_workdir = self._remote_workdir.split(':')[-1] if ':' in self._remote_workdir else self._remote_workdir
-        self._pilot_config_dir = kwargs.get('pilot_config_dir')
-        self._pilot_config_dir = self._pilot_config_dir.split(':')[-1] if ':' in self._pilot_config_dir else self._pilot_config_dir
+        self._pilot_config = kwargs.get('pilot_config')
+        self._pilot_config = self._pilot_config.split(':')[-1] if ':' in self._pilot_config else self._pilot_config
         self._nfs_server = kwargs.get('nfs_server', '10.204.201.2')  # client or server??
         self._pandaid = kwargs.get('pandaid')
         self._taskid = kwargs.get('taskid')
@@ -339,7 +339,7 @@ class DaskSubmitterBase(object):
                                          cert_dir=self._cert_dir,
                                          proxy=self._remote_proxy,
                                          workdir=self._remote_workdir,
-                                         configdir=self._pilot_config_dir
+                                         config=self._pilot_config
                                          )
         status = dask_utils.write_file(path, yaml, mute=False)
         if not status or not os.path.exists(path):
