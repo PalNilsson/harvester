@@ -873,8 +873,6 @@ spec:
   restartPolicy: Never
   hostNetwork: true
   containers:
-  - name: nginx
-    image: nginx
   - name: CHANGE_POD_NAME
     image: CHANGE_IMAGE_SOURCE
     env:
