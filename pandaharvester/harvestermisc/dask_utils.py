@@ -872,6 +872,7 @@ metadata:
   namespace: CHANGE_NAMESPACE
 spec:
   restartPolicy: Never
+  hostNetwork: true
   containers:
   - name: nginx
     image: nginx:latest
