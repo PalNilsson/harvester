@@ -872,7 +872,6 @@ metadata:
   namespace: CHANGE_NAMESPACE
 spec:
   restartPolicy: Never
-  hostNetwork: true
   containers:
   - name: CHANGE_POD_NAME
     image: CHANGE_IMAGE_SOURCE
