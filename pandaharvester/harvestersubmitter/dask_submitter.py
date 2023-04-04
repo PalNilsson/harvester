@@ -464,7 +464,7 @@ class DaskSubmitter(PluginBase):
                                           session_type=session_type,
                                           local_workdir=harvester_workdir,
                                           remote_workdir=self._remote_workdir,
-                                          pilot_config=os.path.jon(self._mountpath, 'default.cfg'),
+                                          pilot_config=os.path.join(self._mountpath, 'default.cfg'),
                                           userid=userid,
                                           namespace=namespace,
                                           pandaid=job_spec.PandaID,
