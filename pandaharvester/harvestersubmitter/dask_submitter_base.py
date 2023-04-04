@@ -78,7 +78,7 @@ class DaskSubmitterBase(object):
         self._session_type = kwargs.get('session_type', 'jupyterlab')
         self._local_workdir = kwargs.get('local_workdir')
         self._remote_workdir = kwargs.get('remote_workdir')
-        self._remote_workdir = self._pilot_config_dir.split(':')[-1] if ':' in self._pilot_config_dir else self._pilot_config_dir
+        self._remote_workdir = self._remote_workdir.split(':')[-1] if ':' in self._remote_workdir else self._remote_workdir
         self._pilot_config_dir = kwargs.get('pilot_config_dir')
         self._pilot_config_dir = self._pilot_config_dir.split(':')[-1] if ':' in self._pilot_config_dir else self._pilot_config_dir
         self._nfs_server = kwargs.get('nfs_server', '10.204.201.2')  # client or server??
