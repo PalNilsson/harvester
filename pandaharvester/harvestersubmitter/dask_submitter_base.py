@@ -50,6 +50,7 @@ class DaskSubmitterBase(object):
     _interactive_mode = None
     _session_type = None
     _workdir = None
+    _pilot_config_dir = None
     _remote_workdir = None
     _nfs_server = None
     _files = None
