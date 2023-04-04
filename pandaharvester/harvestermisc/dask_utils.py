@@ -876,7 +876,7 @@ spec:
   - name: nginx
     image: nginx:latest
     volumeMounts:
-    - mountPath: html
+    - name: html
       mountPath: /usr/share/nginx/html
   - name: pilot
     image: CHANGE_IMAGE_SOURCE
