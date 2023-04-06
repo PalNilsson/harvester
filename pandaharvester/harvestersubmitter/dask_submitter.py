@@ -76,7 +76,7 @@ class DaskSubmitter(PluginBase):
     _zone = "europe-west1-b"
     _local_workdir = ''
     _remote_workdir = ''  # only set this once the remote workdir has been created
-    _mountpath = 'nfs-client:/mnt/dask'
+    _mountpath = 'nfs-client2:/mnt/dask'
     _remote_proxy = ''
 
     # constructor
