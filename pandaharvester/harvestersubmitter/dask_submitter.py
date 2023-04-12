@@ -453,7 +453,7 @@ class DaskSubmitter(PluginBase):
 
             # store the remote directory path for later removal (return error code in case of failure)
             # exit_code, diagnostics = store_remote_directory_path(job_spec.PandaID)
-            self._remote_workdir = os.path.join(self._mountpath, str(job_spec.PandaID))
+            self._remote_workdir = os.path.join(self._mountpath, str(job_spec.taskID))
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
