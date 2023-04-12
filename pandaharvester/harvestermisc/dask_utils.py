@@ -6,11 +6,11 @@
 # Authors:
 # - Paul Nilsson, paul.nilsson@cern.ch, 2022
 
-import logging
+#import logging
 import os
 import re
 import subprocess
-import sys
+#import sys
 import time
 from shutil import rmtree
 from json import dump as dumpjson
@@ -443,7 +443,7 @@ def write_file(path, contents, mute=True, mode='w'):
     return status
 
 
-def get_pv_yaml(namespace=None, user_id=None, nfs_server='10.204.201.2'):  # 10.226.152.66, 10.132.0.82
+def get_pv_yaml(namespace=None, user_id=None, nfs_server=None):
     """
     :param namespace: namespace (string).
     :param user_id: user id (string).
@@ -456,6 +456,9 @@ def get_pv_yaml(namespace=None, user_id=None, nfs_server='10.204.201.2'):  # 10.
         return ""
     if not user_id:
         base_logger.warning('user id must be set')
+        return ""
+    if not nfs_server:
+        base_logger.warning('NFS server IP must be set')
         return ""
 
     yaml = """

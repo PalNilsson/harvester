@@ -81,7 +81,7 @@ class DaskSubmitterBase(object):
         self._remote_workdir = self._remote_workdir.split(':')[-1] if ':' in self._remote_workdir else self._remote_workdir
         self._pilot_config = kwargs.get('pilot_config')
         self._pilot_config = self._pilot_config.split(':')[-1] if ':' in self._pilot_config else self._pilot_config
-        self._nfs_server = kwargs.get('nfs_server', '10.204.201.2')  # client or server??
+        self._nfs_server = kwargs.get('nfs_server', '10.173.46.194')
         self._pandaid = kwargs.get('pandaid')
         self._taskid = kwargs.get('taskid')
         self._workspec = kwargs.get('workspec')
