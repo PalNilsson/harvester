@@ -18,7 +18,8 @@ from json import dump as dumpjson
 from pandaharvester.harvestercore import core_utils
 
 base_logger = core_utils.setup_logger('dask_utils')
-
+pilotpoduserid = '1006'
+pilotpodgroupid = '1007'
 
 def create_namespace(_namespace, filename):
     """
@@ -873,6 +874,9 @@ metadata:
   name: CHANGE_POD_NAME
   namespace: CHANGE_NAMESPACE
 spec:
+  securityContext:
+    runAsUser: CHANGE_PODUSERID
+    runAsGroup: CHANGE_PODGROUPID
   restartPolicy: Never
   hostNetwork: true
   containers:
@@ -916,6 +920,8 @@ spec:
       readOnly: false
 """
 
+    yaml = yaml.replace('CHANGE_PODUSERID', pilotpoduserid)
+    yaml = yaml.replace('CHANGE_PODGROUPID', pilotpodgroupid)
     yaml = yaml.replace('CHANGE_POD_NAME', pod_name)
     yaml = yaml.replace('CHANGE_IMAGE_SOURCE', image_source)
     yaml = yaml.replace('CHANGE_NFS_PATH', nfs_path)
