@@ -106,7 +106,7 @@ class DaskSubmitterBase(object):
             'dask-scheduler': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-scheduler:latest',
             'dask-worker': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker:latest',
             'dask-pilot': 'palnilsson/dask-pilot:latest',
-            'pilot-image': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/pilot-image:latest',
+            'pilot': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/pilot-image:latest',
             'jupyterlab': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/datascience-notebook:latest',
             'remote-cleanup': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/remote-cleanup:latest',
         }
@@ -115,7 +115,7 @@ class DaskSubmitterBase(object):
             'dask-scheduler-service': 'dask-scheduler',
             'dask-scheduler': 'dask-scheduler',
             'dask-worker': 'dask-worker',
-            'dask-pilot': 'dask-pilot',
+            'pilot': 'pilot',
             'pilot-image': 'pilot-image',
             'jupyterlab-service': 'jupyterlab',
             'jupyterlab': 'jupyterlab',
@@ -328,8 +328,8 @@ class DaskSubmitterBase(object):
 
         # create pilot yaml
         path = os.path.join(self._local_workdir, self._files.get('pilot-image') % self._pandaid)
-        yaml = dask_utils.get_pilot_yaml(pod_name=self._podnames.get('pilot-image'),
-                                         image_source=self._images.get('pilot-image', 'unknown'),
+        yaml = dask_utils.get_pilot_yaml(pod_name=self._podnames.get('pilot'),
+                                         image_source=self._images.get('pilot', 'unknown'),
                                          nfs_path=self._mountpath,
                                          namespace=self._namespace,
                                          user_id=self._userid,
@@ -555,7 +555,7 @@ class DaskSubmitterBase(object):
                                    f"taskid={self._taskid}:" \
                                    f"dask-scheduler_pod_name={service_info['dask-scheduler'].get('pod_name')}:" \
                                    f"session_pod_name={service_info['jupyterlab'].get('pod_name')}:" \
-                                   f"pilot_pod_name={self._podnames.get('pilot-image')}"  # pilot pod not created yet
+                                   f"pilot_pod_name={self._podnames.get('pilot')}"  # pilot pod not created yet
 
         # deploy the pilot pod, but do not wait for it to start (will be done by the dask monitor)
         status, stderr = self.deploy_pilot()
