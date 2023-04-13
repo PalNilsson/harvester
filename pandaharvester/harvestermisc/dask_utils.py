@@ -1261,7 +1261,7 @@ def to_dict(job_spec):
 
     try:
         job_params = job_spec.get_job_params(False)
-        job_spec_dict = job_params  #{job_spec.PandaID: job_params}
+        job_spec_dict = {job_spec.PandaID: job_params}
     except Exception as exc:
         base_logger.warning(f'failed to create job spec dictionary: {exc}')
 
