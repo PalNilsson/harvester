@@ -254,10 +254,6 @@ class DaskSubmitter(PluginBase):
             job_spec_dict['session_ip'] = session_ip
         tmp_log.debug(f'job_spec_dict={job_spec_dict}')
 
-        # pilot pod will create user space; submitter will create job definition and push it to /mnt/dask
-        # where it will be discovered by the pilot pod (who will know the job id and therefore which job def to pull)
-        # for now, only push the job def to /mnt/dask on the shared file system
-
         # place the job def in the local workdir and move it recursively to the remote shared file system
         filepath = os.path.join(self._local_workdir, f'pandaJobData.out')
         try:
