@@ -92,8 +92,7 @@ class DaskSubmitterBase(object):
             'dask-scheduler-service': '%d-dask-scheduler-service.yaml',
             'dask-scheduler': '%d-dask-scheduler-deployment.yaml',
             'dask-worker': '%d-dask-worker-deployment-%d.yaml',
-            'dask-pilot': '%d-dask-pilot-deployment.yaml',
-            'pilot-image': '%d-pilot-deployment.yaml',
+            'pilot': '%d-pilot-deployment.yaml',
             'jupyterlab-service': '%d-jupyterlab-service.yaml',
             'jupyterlab': '%d-jupyterlab-deployment.yaml',
             'namespace': '%d-namespace.json',
@@ -115,7 +114,6 @@ class DaskSubmitterBase(object):
             'dask-scheduler': 'dask-scheduler',
             'dask-worker': 'dask-worker',
             'pilot': 'pilot',
-            'pilot-image': 'pilot-image',
             'jupyterlab-service': 'jupyterlab',
             'jupyterlab': 'jupyterlab',
             'remote-cleanup': 'remote-cleanup',
@@ -326,7 +324,7 @@ class DaskSubmitterBase(object):
         """
 
         # create pilot yaml
-        path = os.path.join(self._local_workdir, self._files.get('pilot-image') % self._pandaid)
+        path = os.path.join(self._local_workdir, self._files.get('pilot') % self._pandaid)
         yaml = dask_utils.get_pilot_yaml(pod_name=self._podnames.get('pilot'),
                                          image_source=self._images.get('pilot', 'unknown'),
                                          nfs_path=self._mountpath,
