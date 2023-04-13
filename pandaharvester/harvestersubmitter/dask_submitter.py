@@ -249,8 +249,7 @@ class DaskSubmitter(PluginBase):
         tmp_log.debug(f'processing job {job_spec.PandaID} (create local and remote work directories)')
         # the pilot wants a simplified job def without the pandaid as key
         # { pandaid: jobdefdict } -> jobdefdict
-        tmp = dask_utils.to_dict(job_spec)
-        job_spec_dict = tmp.get(job_spec.PandaID)
+        job_spec_dict = dask_utils.to_dict(job_spec)
         if scheduler_ip:
             job_spec_dict['scheduler_ip'] = scheduler_ip
         if session_ip:
