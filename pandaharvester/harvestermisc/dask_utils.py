@@ -880,11 +880,6 @@ spec:
   restartPolicy: Never
   hostNetwork: true
   containers:
-#  - name: nginx
-#    image: nginx:latest
-#    volumeMounts:
-#    - name: html
-#      mountPath: /usr/share/nginx/html
   - name: pilot
     image: CHANGE_IMAGE_SOURCE
     env:
