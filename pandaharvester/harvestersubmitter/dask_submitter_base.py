@@ -61,7 +61,7 @@ class DaskSubmitterBase(object):
     _workspec = None
     _queuename = None
     _remote_proxy = None
-    _cert_dir = '/etc/grid-security/certificates'
+    _cert_dir = '/mnt/dask/etc/grid-security/certificates'
 
     # constructor
     def __init__(self, **kwargs):
