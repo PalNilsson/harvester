@@ -254,6 +254,10 @@ class DaskSubmitter(PluginBase):
             job_spec_dict[job_spec.PandaID]['scheduler_ip'] = scheduler_ip
         if session_ip:
             job_spec_dict[job_spec.PandaID]['session_ip'] = session_ip
+
+        # user secrets are not needed by the pilot, so remove them
+        del job_spec_dict[job_spec.PandaID]['secrets']
+
         tmp_log.debug(f'job_spec_dict={job_spec_dict}')
 
         # place the job def in the local workdir and move it recursively to the remote shared file system

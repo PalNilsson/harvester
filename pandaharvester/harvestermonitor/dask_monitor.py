@@ -170,9 +170,13 @@ class DaskMonitor(PluginBase):
         else:
             tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')
         if time_now - workspec.podStartTime > datetime.timedelta(seconds=self.podQueueTimeLimit):
-            tmp_log.debug('worker is out of time - {time_now - workspec.podStartTime} s have passed since start')
+            err_str = 'worker is out of time - {time_now - workspec.podStartTime} s have passed since start'
+            tmp_log.debug(err_str)
             # clean up
             dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
+            # remove everything
+            # ..
+            status = WorkSpec.ST_finished  # set finished so the job is not retried (??)
 
         return status, err_str
 
