@@ -137,8 +137,9 @@ class DaskMonitor(PluginBase):
             except Exception as exc:
                 err_str = f'caught exception: {exc}'
                 tmp_log.warning(err_str)
-                pod_info = None
                 status = WorkSpec.ST_failed
+                workspec.set_status(status)
+                return status, err_str
             else:
                 tmp_log.debug('pilot pod is running')
 
@@ -162,7 +163,7 @@ class DaskMonitor(PluginBase):
                     status = WorkSpec.ST_running
                 else:
                     status = WorkSpec.ST_failed
-            workspec.set_status(status)
+
             #if pod_info:
             #    for worker in pod_info:
             #        # each pod runs a dask worker
@@ -178,6 +179,7 @@ class DaskMonitor(PluginBase):
             # ..
             status = WorkSpec.ST_finished  # set finished so the job is not retried (??)
 
+        workspec.set_status(status)
         return status, err_str
 
         try:
