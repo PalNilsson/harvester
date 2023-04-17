@@ -43,7 +43,7 @@ class DaskMonitor(PluginBase):
         try:
             self.podQueueTimeLimit
         except AttributeError:
-            self.podQueueTimeLimit = 300  #172800
+            self.podQueueTimeLimit = 15 * 60  #172800
 
         self._all_pods_list = []
 
@@ -171,7 +171,7 @@ class DaskMonitor(PluginBase):
         else:
             tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')
         if time_now - workspec.podStartTime > datetime.timedelta(seconds=self.podQueueTimeLimit):
-            err_str = 'worker is out of time - {time_now - workspec.podStartTime} s have passed since start'
+            err_str = f'worker is out of time: {time_now - workspec.podStartTime} s have passed since start (t={time_now})'
             tmp_log.debug(err_str)
             # clean up
             dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
