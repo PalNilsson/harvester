@@ -24,12 +24,14 @@ class DaskSweeper(BaseSweeper):
         tmp_log = self.make_logger(base_logger, method_name='kill_workers')
 
         ret_list = []
+        tmp_log.debug(f'len(work_spec_list)={len(work_spec_list)}')
         for work_spec in work_spec_list:
             tmp_ret_val = (None, 'Nothing done')
 
             time_now = datetime.datetime.utcnow()
             batch_id = work_spec.batchID
             worker_id = str(work_spec.workerID)
+            tmp_log.debug(f'batch_id={batch_id}, worker_id={worker_id}')
             if batch_id:  # sometimes there are missed workers that were not submitted
 
                 # delete the job

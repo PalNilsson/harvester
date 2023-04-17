@@ -261,6 +261,7 @@ class DaskMonitor(PluginBase):
             ret_iterator = thread_pool.map(self.check_a_worker, workspec_list)
 
         ret_list = list(ret_iterator)
-
+        for workspec in workspec_list:
+            tmp_log.debug(f'status={workspec.status}')
         tmp_log.debug('done')
         return True, ret_list

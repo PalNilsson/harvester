@@ -336,7 +336,6 @@ class DaskSubmitter(PluginBase):
         exit_code = 0
         diagnostics = ""
 
-        # the local directory can be removed once the job spec has been moved to the remote location
         self._local_workdir = os.path.join(self._tmpdir, f'{name}')
         dirs = [self._tmpdir, self._local_workdir]
         for directory in dirs:
@@ -505,7 +504,11 @@ class DaskSubmitter(PluginBase):
                         err_str = f'place_job_def() failed with exit code {exit_code} (aborting)'
                         tmp_log.warning(err_str)
                         tmp_return_value = (False, err_str)
-
+                        work_spec.set_status(WorkSpec.ST_failed)
+                        job_spec.status = 'failed'
+                    else:
+                        work_spec.set_status(WorkSpec.ST_submitted)
+                        job_spec.status = 'submitted'
                 # done, cleanup and exit
                 if interactive_mode:
                     # create the clean-up script [eventually to be executed by sweeper instead of executing cleanup() below?]
@@ -518,16 +521,21 @@ class DaskSubmitter(PluginBase):
                 err_str = 'DaskSubmitterBase did not complete install()'
                 tmp_log.warning(err_str)
                 tmp_return_value = (False, err_str)
+                work_spec.set_status(WorkSpec.ST_failed)
+                job_spec.status = 'failed'
         except Exception as exc:
             if submitter:
                 submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
             tmp_log.error(traceback.format_exc())
             err_str = f'Failed to create a JOB; {exc}'
             tmp_return_value = (False, err_str)
+            work_spec.set_status(WorkSpec.ST_failed)
+            job_spec.status = 'failed'
         else:
             work_spec.batchID = f'kubernetes-job-{userid}'  # yaml_content['metadata']['name']
             tmp_log.debug(f'Created harvester worker {work_spec.workerID} with batchID={work_spec.batchID}')
             tmp_return_value = (True, '')
+            tmp_log.debug(f'work_spec status={work_spec.status}')
 
         return tmp_return_value
 
@@ -593,6 +601,8 @@ class DaskSubmitter(PluginBase):
             ret_val_list = thread_pool.map(self.submit_harvester_worker, workspec_list)
             tmp_log.debug(f'{n_workers} worker(s) submitted')
 
+        for workspec in workspec_list:
+            tmp_log.debug(f'status={workspec.status}')
         tmp_log.debug('done')
 
         return list(ret_val_list)
