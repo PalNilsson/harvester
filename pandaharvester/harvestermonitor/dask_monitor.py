@@ -76,6 +76,7 @@ class DaskMonitor(PluginBase):
                 tmp_log.warning(f'caught exception: {exc}')
         else:
             if 'not found' in stderr:
+                tmp_log.debug(f'pilot pod not found: {stderr}')
                 pass  # ignore since pod has not started yet
             else:
                 tmp_log.warning(f'command (cmd) failed: {stderr}')
@@ -211,14 +212,18 @@ class DaskMonitor(PluginBase):
                 # sweeper should kill everything when maxWalltime has been passed
                 if status:
                     _status = True
-                    for worker in pods:
+                    for worker in pods:  # dask-workers and pilot
                         pod_info = pods[worker]
                         state = pod_info['status']
-                        tmp_log.debug(f'worker {worker} is in state={state}')
-                        if state != 'Running':
+                        if 'dask-worker' in worker and state != 'Running':
+                            tmp_log.debug(f'worker {worker} is in state={state}')
+                            _status = False
+                        elif 'pilot' in worker and state == 'Error':
+                            tmp_log.debug('pilot failed')
                             _status = False
 
                     if not _status:
+                        tmp_log.debug('setting WorkSpec.ST_failed due to previous error(s)')
                         status = WorkSpec.ST_failed
                     else:
                         workspec.maxWalltime = 900
@@ -230,10 +235,12 @@ class DaskMonitor(PluginBase):
                     status = WorkSpec.ST_failed
         else:
             tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')
-
+        tmp_log.debug(f'workspec status={status}')
         pod_info = self.get_pod_info('pilot', _namespace)
+        tmp_log.debug(f'pod info={pod_info}')
         if pod_info:  # did the pilot finish? if so, get the exit code to see if it finished correctly
             _ec, _status = self.get_pilot_exit_code(pod_info, state='terminated')
+            tmp_log.debug(f'ec={_ec}, status={_status}')
             if _status:
                 if not _ec:
                     tmp_log(f'pilot failed with exit code: {_ec}')
@@ -256,6 +263,7 @@ class DaskMonitor(PluginBase):
             # ..
             status = WorkSpec.ST_finished  # set finished so the job is not retried (??)
 
+        tmp_log.debug(f'setting workspec status={status}')
         workspec.set_status(status)
         return status, err_str
 
