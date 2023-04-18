@@ -1,5 +1,6 @@
 import datetime
 import os.path
+import time
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -46,6 +47,64 @@ class DaskMonitor(PluginBase):
             self.podQueueTimeLimit = 15 * 60  #172800
 
         self._all_pods_list = []
+
+    def get_pod_info(self, podname, namespace):
+        """
+        Get the pod_info dictionary containing all the known pod information.
+        """
+
+        tmp_log = self.make_logger(base_logger, 'queueName={0} workerID={1} batchID={2}'.
+                                   format(self.queueName, workspec.workerID, workspec.batchID),
+                                   method_name='get_pod_info')
+
+        pod_info = {}
+        cmd = f'kubectl get pod {podname} --output=json -n {namespace}'
+        ec, stdout, stderr = execute(cmd)
+        if not ec and stdout:
+            _dict = loads(stdout)
+
+            try:
+                pod_info['start_time'] = _dict['status']['startTime']
+                pod_info['status'] = _dict['status']['startTime']
+                pod_info['status_conditions'] = _dict['status']['conditions']
+                pod_info['containers_state'] = []
+                if _dict['status']['containerStatuses']:
+                    for _cs in _dict['status']['containerStatuses']:
+                        if _cs['state']:
+                            pod_info['containers_state'].append(_cs['state'])
+            except Exception as exc:
+                tmp_log.warning(f'caught exception: {exc}')
+        else:
+            if 'not found' in stderr:
+                pass  # ignore since pod has not started yet
+            else:
+                tmp_log.warning(f'command (cmd) failed: {stderr}')
+
+        return pod_info
+
+    def get_pilot_exit_code(self, pod_info, state='unknown'):
+        """
+        Get the pilot container exit code.
+        Note: a status Boolean is also returned to make sure that the exit code was correctly extracted.
+        """
+        # pod_info['containers_state'][0]['terminated']['exitCode']
+
+        status = False
+        tmp_log = self.make_logger(base_logger, 'queueName={0} workerID={1} batchID={2}'.
+                                   format(self.queueName, workspec.workerID, workspec.batchID),
+                                   method_name='get_pilot_exit_code')
+        exit_code = 0
+        if not state in pod_info['containers_state'][0]:
+            tmp_log.warning(f'state {state} not found in pod_info={pod_info}')
+        else:
+            try:
+                exit_code = pod_info['containers_state'][0][state]['exitCode']
+            except Exception as exc:
+                tmp_log.warning(f'caught exception: {exc}')
+            else:
+                status = True if isinstance(exit_code, int) else False
+
+        return exit_code, status
 
     def check_pods_status(self, pods_status_list, containers_state_list):
         sub_msg = ''
@@ -119,17 +178,11 @@ class DaskMonitor(PluginBase):
         # extract the namespace, scheduler and session pod names from the encoded workspec.namespace
         if workspec.namespace:
             _namespace, _taskid, _scheduler_pod_name, _session_pod_name, _pilot_pod_name = dask_utils.extract_pod_info(workspec.namespace)
-            tmp_log.debug(f'namespace={_namespace}')
-            tmp_log.debug(f'taskid={_taskid}')
-            tmp_log.debug(f'scheduler pod name={_scheduler_pod_name}')
-            tmp_log.debug(f'session pod name={_session_pod_name}')
-            tmp_log.debug(f'pilot pod name={_pilot_pod_name}')
         else:
             err_str = 'workspec.namespace, scheduler and session pod names are not known yet'
             tmp_log.debug(err_str)
             return None, err_str
 
-        tmp_log.debug(f'workspec.status={workspec.status}')
         if _namespace and _scheduler_pod_name and _session_pod_name and _pilot_pod_name and workspec.status != WorkSpec.ST_running:
             # wait for pilot pod to start
             try:
@@ -170,6 +223,24 @@ class DaskMonitor(PluginBase):
             #        if pod_info[worker]['start_time']
         else:
             tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')
+
+        time.sleep(10)
+        pod_info = self.get_pod_info('pilot', _namespace)
+        if pod_info:  # did the pilot finish? if so, get the exit code to see if it finished correctly
+            _ec, _status = self.get_pilot_exit_code(pod_info, state='terminated')
+            if _status:
+                if not _ec:
+                    tmp_log(f'pilot failed with exit code: {_ec}')
+                    # clean up
+                    dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
+                    # remove everything
+                    # ..
+                    status = WorkSpec.ST_failed
+                else:
+                    tmp_log.debug('pilot pod has finished correctly')
+                    # if non-interactive mode, terminate everything
+                    # ..
+
         if time_now - workspec.podStartTime > datetime.timedelta(seconds=self.podQueueTimeLimit):
             err_str = f'worker is out of time: {time_now - workspec.podStartTime} s have passed since start (t={time_now})'
             tmp_log.debug(err_str)
