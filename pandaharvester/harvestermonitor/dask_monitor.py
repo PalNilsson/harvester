@@ -216,11 +216,6 @@ class DaskMonitor(PluginBase):
                     status = WorkSpec.ST_running
                 else:
                     status = WorkSpec.ST_failed
-
-            #if pod_info:
-            #    for worker in pod_info:
-            #        # each pod runs a dask worker
-            #        if pod_info[worker]['start_time']
         else:
             tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')
 
