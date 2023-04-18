@@ -1134,7 +1134,7 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
                 stderr = 'caught exception: {exc}'
                 base_logger.warning(stderr)
             else:
-                if state == 'Running':
+                if state == 'Running' or state == 'Completed' or state == 'Error':
                     running_workers.append(worker_name)
                     #base_logger.debug(f'{worker_name} is in state \"{state}\"')
                 if counter == 0:
@@ -1147,7 +1147,6 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
                 pods[worker_name] = pod_info
 
         if len(running_workers) == len(list(dictionary.keys())) - 2:
-            base_logger.info('all workers are running')
             processing = False
         else:
             time.sleep(_sleep)
@@ -1155,9 +1154,9 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
             counter += 1
             if counter >= 10:
                 counter = 0
-                base_logger.debug('number of running workers: {len(running_workers)}')
+                base_logger.debug('number of workers: {len(running_workers)}')
 
-    base_logger.debug(f'number of running dask workers: {len(running_workers)}')
+    base_logger.debug(f'number of dask workers: {len(running_workers)}')
 
     return status, pods
 

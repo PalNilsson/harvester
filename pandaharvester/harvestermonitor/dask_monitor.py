@@ -198,23 +198,35 @@ class DaskMonitor(PluginBase):
 
             # wait for the worker pods to start
             try:
-                status, pod_info = dask_utils.await_worker_deployment(_namespace,
+                status, pods = dask_utils.await_worker_deployment(_namespace,
                                                                       scheduler_pod_name=_scheduler_pod_name,
                                                                       jupyter_pod_name=_session_pod_name)
             except Exception as exc:
                 err_str = f'caught exception: {exc}'
                 tmp_log.warning(err_str)
-                pod_info = None
+                pods = None
                 status = WorkSpec.ST_failed
             else:
                 # set workspec.maxWalltime when dask worker pods are running
                 # sweeper should kill everything when maxWalltime has been passed
                 if status:
-                    workspec.maxWalltime = 900
-                    workspec.podStartTime = datetime.datetime.utcnow()
-                    tmp_log.debug(f'set podStartTime to {workspec.podStartTime} and maxWalltime to {workspec.maxWalltime}')
-                    status = WorkSpec.ST_running
+                    _status = True
+                    for worker in pods:
+                        pod_info = pods[worker]
+                        state = pod_info['status']
+                        tmp_log.debug(f'worker {worker} is in state={state}')
+                        if state != 'Running':
+                            _status = False
+
+                    if not _status:
+                        status = WorkSpec.ST_failed
+                    else:
+                        workspec.maxWalltime = 900
+                        workspec.podStartTime = datetime.datetime.utcnow()
+                        tmp_log.debug(f'set podStartTime to {workspec.podStartTime} and maxWalltime to {workspec.maxWalltime}')
+                        status = WorkSpec.ST_running
                 else:
+                    tmp_log.debug(f'worker(s) failed')
                     status = WorkSpec.ST_failed
         else:
             tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')
