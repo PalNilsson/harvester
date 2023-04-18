@@ -186,7 +186,7 @@ class DaskMonitor(PluginBase):
         if _namespace and _scheduler_pod_name and _session_pod_name and _pilot_pod_name and workspec.status != WorkSpec.ST_running:
             # wait for pilot pod to start
             try:
-                status, _, stderr = dask_utils.wait_until_deployment(name=_pilot_pod_name, state='Running', namespace=_namespace)
+                status, _, stderr = dask_utils.wait_until_deployment(name=_pilot_pod_name, state='Running|Error', namespace=_namespace)
             except Exception as exc:
                 err_str = f'caught exception: {exc}'
                 tmp_log.warning(err_str)
@@ -194,7 +194,7 @@ class DaskMonitor(PluginBase):
                 workspec.set_status(status)
                 return status, err_str
             else:
-                tmp_log.debug('pilot pod is running')
+                tmp_log.debug(f'pilot pod is running (status={status})')
 
             # wait for the worker pods to start
             try:
@@ -219,7 +219,6 @@ class DaskMonitor(PluginBase):
         else:
             tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')
 
-        time.sleep(10)
         pod_info = self.get_pod_info('pilot', _namespace)
         if pod_info:  # did the pilot finish? if so, get the exit code to see if it finished correctly
             _ec, _status = self.get_pilot_exit_code(pod_info, state='terminated')
