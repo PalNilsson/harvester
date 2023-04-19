@@ -293,11 +293,12 @@ class DaskMonitor(PluginBase):
             tmp_log.warning(f'path={path} does not exist (failed to cleanup)')
 
         # clean the harvester workdir for the current job
-        cmd = f'rm -f {self._harvester_workdir}/{task_id}-*'
-        tmp_log.debug(f'cleaning up harvester workdir ({cmd})')
-        ec, stdout, stderr = dask_utils.execute(cmd)
-        if ec:
-            tmp_log.warning(f'failed with ec={ec}, out={stdout+stderr}')
+        for _id in [task_id, worker_id]:
+            cmd = f'rm -f {self._harvester_workdir}/{_id}-*'
+            tmp_log.debug(f'cleaning up harvester workdir ({cmd})')
+            ec, stdout, stderr = dask_utils.execute(cmd)
+            if ec:
+                tmp_log.warning(f'failed with ec={ec}, out={stdout+stderr}')
 
     def check_workers(self, workspec_list):
         tmp_log = self.make_logger(base_logger, 'queueName={0}'.format(self.queueName), method_name='check_workers')
