@@ -246,7 +246,7 @@ class DaskMonitor(PluginBase):
                     else:
                         tmp_log.debug(f'removed {os.path.join(self._tmpdir, str(_taskid))}')
                     # remove everything
-                    # ..
+                    self.delete_job(workspec.workerID)
                     status = WorkSpec.ST_failed
                 else:
                     tmp_log.debug('pilot pod has finished correctly')
@@ -261,7 +261,7 @@ class DaskMonitor(PluginBase):
             # clean up
             dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
             # remove everything
-            # ..
+            self.delete_job(workspec.workerID)
             status = WorkSpec.ST_finished  # set finished so the job is not retried (??)
 
         tmp_log.debug(f'setting workspec status={status}')
@@ -324,6 +324,21 @@ class DaskMonitor(PluginBase):
             workspec.set_supplemental_error(error_code=sup_error_code, error_diag=sup_error_diag)
 
         return new_status, err_str
+
+    def delete_job(self, worker_id):
+        #
+        tmp_log = self.make_logger(base_logger, 'workerID={0}'.format(worker_id), method_name='sweep_worker')
+
+        path = os.path.join(self._harvester_workdir, f'{worker_id}-cleanup.sh')
+        if os.path.exists(path):
+            tmp_log.debug(f'cleaning up after worker_id={worker_id}')
+            ec, stdout, stderr = dask_utils.execute(path)
+            if ec:
+                tmp_log.debug(f'failed to execute {path}: {stdout}\n{stderr}')
+            else:
+                tmp_log.debug(f'executed {path}')
+        else:
+            tmp_log.warning(f'path={path} does not exist (failed to cleanup)')
 
     def check_workers(self, workspec_list):
         tmp_log = self.make_logger(base_logger, 'queueName={0}'.format(self.queueName), method_name='check_workers')
