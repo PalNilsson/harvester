@@ -550,6 +550,7 @@ class DaskSubmitterBase(object):
         # store the scheduler pod names, so the monitor can start checking the pod statuses
         self._workspec.namespace = f"namespace={self._namespace}:" \
                                    f"taskid={self._taskid}:" \
+                                   f"mode={self._interactive_mode}:" \
                                    f"dask-scheduler_pod_name={service_info['dask-scheduler'].get('pod_name')}:" \
                                    f"session_pod_name={service_info['jupyterlab'].get('pod_name')}:" \
                                    f"pilot_pod_name={self._podnames.get('pilot')}"  # pilot pod not created yet

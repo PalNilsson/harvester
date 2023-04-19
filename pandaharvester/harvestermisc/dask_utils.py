@@ -1264,30 +1264,32 @@ def to_dict(job_spec):
 
 def extract_pod_info(namespace):
     """
-    Extract the actual namespace, taskid, scheduler, session and pilot pod names encoded in the work spec namespace variable.
+    Extract the actual namespace, taskid, mode, scheduler, session and pilot pod names encoded in the work spec namespace variable.
     The 'session' would typically be jupyterlab.
 
     :param namespace: encoded name space (string).
-    :return: actual name space (string), scheduler pod name (string), session pod name (string), pilot pod name (string).
+    :return: actual name space (str), task id (str), interactive mode (Boolean), scheduler pod name (str), session pod name (str), pilot pod name (str).
     """
 
     _namespace = ''
     _taskid = ''
+    _mode = None
     _scheduler_pod_name = ''
     _session_pod_name = ''
     _pilot_pod_name = ''
-    pattern = r'namespace\=(.+)\:taskid\=(.+)\:dask\-scheduler\_pod\_name\=(.+)\:session\_pod\_name\=(.+)\:pilot\_pod\_name\=(.+)'
+    pattern = r'namespace\=(.+)\:taskid\=(.+)\:mode\=(.+)\:dask\-scheduler\_pod\_name\=(.+)\:session\_pod\_name\=(.+)\:pilot\_pod\_name\=(.+)'
     try:
         info = re.findall(pattern, namespace)
         _namespace = info[0][0]
         _taskid = info[0][1]
-        _scheduler_pod_name = info[0][2]
-        _session_pod_name = info[0][3]
-        _pilot_pod_name = info[0][4]
+        _mode = bool(info[0][2])
+        _scheduler_pod_name = info[0][3]
+        _session_pod_name = info[0][4]
+        _pilot_pod_name = info[0][5]
     except Exception as exc:
         base_logger(f'failed to extract pod info from namespace={namespace}: {exc}')
 
-    return _namespace, _taskid, _scheduler_pod_name, _session_pod_name, _pilot_pod_name
+    return _namespace, _taskid, _mode, _scheduler_pod_name, _session_pod_name, _pilot_pod_name
 
 
 def remove_local_dir(directory):

@@ -173,13 +173,11 @@ class DaskMonitor(PluginBase):
         pods_status_list = []
         pods_name_to_delete_list = []
         tmp_log.debug('called check_a_worker()')
-        if workspec.podStartTime:
-            tmp_log.debug(f'workspec.podStartTime={workspec.podStartTime}')
         # extract the namespace, scheduler and session pod names from the encoded workspec.namespace
         if workspec.namespace:
-            _namespace, _taskid, _scheduler_pod_name, _session_pod_name, _pilot_pod_name = dask_utils.extract_pod_info(workspec.namespace)
+            _namespace, _taskid, _mode, _scheduler_pod_name, _session_pod_name, _pilot_pod_name = dask_utils.extract_pod_info(workspec.namespace)
         else:
-            err_str = 'workspec.namespace, scheduler and session pod names are not known yet'
+            err_str = 'pod info is not known yet'
             tmp_log.debug(err_str)
             return None, err_str
 
