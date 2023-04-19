@@ -192,7 +192,7 @@ class DaskMonitor(PluginBase):
                 workspec.set_status(status)
                 return status, err_str
             else:
-                tmp_log.debug(f'pilot pod is running (status={status})')
+                tmp_log.debug(f'pilot pod is running (status={status}, interactive mode={_mode})')
 
             # wait for the worker pods to start
             try:
@@ -232,14 +232,12 @@ class DaskMonitor(PluginBase):
                     status = WorkSpec.ST_failed
         else:
             tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')
-        tmp_log.debug(f'workspec status={status}')
         pod_info = self.get_pod_info('pilot', _namespace)
         tmp_log.debug(f'pod info={pod_info}')
         if pod_info:  # did the pilot finish? if so, get the exit code to see if it finished correctly
             _ec, _status = self.get_pilot_exit_code(pod_info, state='terminated')
-            tmp_log.debug(f'ec={_ec}, status={_status}')
-            if _status:
-                if not _ec:
+            if _status:  # ie an exit code int was correctly received
+                if _ec:
                     tmp_log(f'pilot failed with exit code: {_ec}')
                     # clean up
                     dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
@@ -250,6 +248,8 @@ class DaskMonitor(PluginBase):
                     tmp_log.debug('pilot pod has finished correctly')
                     # if non-interactive mode, terminate everything
                     # ..
+            else:
+                tmp_log.debug('pilot exit code was not extracted')
 
         if time_now - workspec.podStartTime > datetime.timedelta(seconds=self.podQueueTimeLimit):
             err_str = f'worker is out of time: {time_now - workspec.podStartTime} s have passed since start (t={time_now})'
