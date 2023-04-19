@@ -1,8 +1,10 @@
 from pandaharvester.harvestercore import core_utils
 from pandaharvester.harvestersweeper.base_sweeper import BaseSweeper
-#from pandaharvester.harvestermisc.k8s_utils import k8s_Client
 from pandaharvester.harvestermisc.info_utils import PandaQueuesDict
+from pandaharvester.harvestermisc import dask_utils
+
 import datetime
+import os
 
 # logger
 base_logger = core_utils.setup_logger('dask_sweeper')
@@ -11,6 +13,9 @@ base_logger = core_utils.setup_logger('dask_sweeper')
 # sweeper for dask
 class DaskSweeper(BaseSweeper):
     # constructor
+
+    _harvester_workdir = os.environ.get('HARVESTER_WORKDIR', '/data/atlpan/harvester/workdir')
+
     def __init__(self, **kwarg):
         BaseSweeper.__init__(self, **kwarg)
 
@@ -28,16 +33,23 @@ class DaskSweeper(BaseSweeper):
         for work_spec in work_spec_list:
             tmp_ret_val = (None, 'Nothing done')
 
-            time_now = datetime.datetime.utcnow()
+            #time_now = datetime.datetime.utcnow()
             batch_id = work_spec.batchID
             worker_id = str(work_spec.workerID)
-            tmp_log.debug(f'batch_id={batch_id}, worker_id={worker_id}')
             if batch_id:  # sometimes there are missed workers that were not submitted
 
                 # delete the job
                 try:
                     #self.k8s_client.delete_job(batch_id)
-                    tmp_log.debug('[could have] Deleted JOB {0}'.format(batch_id))
+                    path = os.path.join(self._harvester_workdir, f'{worker_id}-cleanup.sh')
+                    if os.path.exists(path):
+                        tmp_log.debug(f'cleaning up after worker_id={worker_id}')
+                        ec, stdout, stderr = dask_utils.execute(path)
+                        if ec:
+                            tmp_log.debug(f'failed to execute {path}: {stdout}\n{stderr}')
+                        else:
+                            tmp_log.debug(f'executed {path}')
+
                 except Exception as _e:
                     err_str = 'Failed to delete a JOB with id={0} ; {1}'.format(batch_id, _e)
                     tmp_log.error(err_str)
