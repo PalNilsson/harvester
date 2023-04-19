@@ -21,6 +21,7 @@ BAD_CONTAINER_STATES = ['CreateContainerError', 'CrashLoopBackOff', "FailedMount
 class DaskMonitor(PluginBase):
 
     _tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
+    _harvester_workdir = os.environ.get('HARVESTER_WORKDIR', '/data/atlpan/harvester/workdir')
 
     # constructor
     def __init__(self, **kwarg):
@@ -169,6 +170,7 @@ class DaskMonitor(PluginBase):
         status = None
         job_id = workspec.batchID
         err_str = ''
+        pods_sup_diag_list = []
         time_now = datetime.datetime.utcnow()
         pods_status_list = []
         pods_name_to_delete_list = []
@@ -234,10 +236,12 @@ class DaskMonitor(PluginBase):
             tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')
         pod_info = self.get_pod_info('pilot', _namespace)
         if pod_info:  # did the pilot finish? if so, get the exit code to see if it finished correctly
+            pods_sup_diag_list.append('pilot')
             _ec, _status = self.get_pilot_exit_code(pod_info, state='terminated')
             if _status:  # ie an exit code int was correctly received
                 if _ec:
-                    tmp_log.debug(f'pilot failed with exit code: {_ec}')
+                    err_str = f'pilot failed with exit code: {_ec}'
+                    tmp_log.debug(err_str)
                     # clean up
                     try:
                         dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
@@ -246,7 +250,7 @@ class DaskMonitor(PluginBase):
                     else:
                         tmp_log.debug(f'removed {os.path.join(self._tmpdir, str(_taskid))}')
                     # remove everything
-                    self.delete_job(workspec.workerID)
+                    self.delete_job(workspec.workerID, _taskid)
                     status = WorkSpec.ST_failed
                 else:
                     tmp_log.debug('pilot pod has finished correctly')
@@ -261,74 +265,22 @@ class DaskMonitor(PluginBase):
             # clean up
             dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
             # remove everything
-            self.delete_job(workspec.workerID)
+            self.delete_job(workspec.workerID, _taskid)
             status = WorkSpec.ST_finished  # set finished so the job is not retried (??)
 
+        # supplemental diag messages
+        sup_error_code = WorkerErrors.error_codes.get('GENERAL_ERROR') if err_str else WorkerErrors.error_codes.get('SUCCEEDED')
+        sup_error_diag = 'PODs=' + ','.join(pods_sup_diag_list) + ' ; ' + err_str
+        workspec.set_supplemental_error(error_code=sup_error_code, error_diag=sup_error_diag)
         tmp_log.debug(f'setting workspec status={status}')
         workspec.set_status(status)
         return status, err_str
 
-        try:
-            pods_list = []  #self.k8s_client.filter_pods_info(self._all_pods_list, job_name=job_id)
-            containers_state_list = []
-            pods_sup_diag_list = []
-            for pod_info in pods_list:
-                # make list of status of the pods belonging to our job
-                pods_status_list.append(pod_info['status'])
-                containers_state_list.extend(pod_info['containers_state'])
-                pods_sup_diag_list.append(pod_info['name'])
-
-                # make a list of pods that should be removed
-                # 1. pods being queued too long
-                if pod_info['status'] in ['Pending', 'Unknown'] and pod_info['start_time'] \
-                        and time_now - pod_info['start_time'] > datetime.timedelta(seconds=self.podQueueTimeLimit):
-                    pods_name_to_delete_list.append(pod_info['name'])
-                # 2. pods with containers in bad states
-                if pod_info['status'] in ['Pending', 'Unknown']:
-                    for item in pod_info['containers_state']:
-                        if item.waiting and item.waiting.reason in BAD_CONTAINER_STATES:
-                            pods_name_to_delete_list.append(pod_info['name'])
-
-        except Exception as _e:
-            err_str = 'Failed to get POD status of JOB id={0} ; {1}'.format(job_id, _e)
-            tmp_log.error(err_str)
-            new_status = None
-        else:
-            if not pods_status_list:
-                # there were no pods found belonging to our job
-                err_str = 'JOB id={0} not found'.format(job_id)
-                tmp_log.error(err_str)
-                tmp_log.info('Force to cancel the worker due to JOB not found')
-                new_status = WorkSpec.ST_cancelled
-            else:
-                # we found pods belonging to our job. Obtain the final status
-                tmp_log.debug('pods_status_list={0}'.format(pods_status_list))
-                new_status, sub_msg = self.check_pods_status(pods_status_list, containers_state_list)
-                if sub_msg:
-                    err_str += sub_msg
-                tmp_log.debug('new_status={0}'.format(new_status))
-
-            # delete pods that have been queueing too long
-            if pods_name_to_delete_list:
-                tmp_log.debug('Deleting pods queuing too long')
-                ret_list = []  #self.k8s_client.delete_pods(pods_name_to_delete_list)
-                deleted_pods_list = []
-                for item in ret_list:
-                    if item['errMsg'] == '':
-                        deleted_pods_list.append(item['name'])
-                tmp_log.debug('Deleted pods queuing too long: {0}'.format(
-                                ','.join(deleted_pods_list)))
-            # supplemental diag messages
-            sup_error_code = WorkerErrors.error_codes.get('GENERAL_ERROR') if err_str else WorkerErrors.error_codes.get('SUCCEEDED')
-            sup_error_diag = 'PODs=' + ','.join(pods_sup_diag_list) + ' ; ' + err_str
-            workspec.set_supplemental_error(error_code=sup_error_code, error_diag=sup_error_diag)
-
-        return new_status, err_str
-
-    def delete_job(self, worker_id):
+    def delete_job(self, worker_id, task_id):
         #
         tmp_log = self.make_logger(base_logger, 'workerID={0}'.format(worker_id), method_name='sweep_worker')
 
+        # cleanup namespace
         path = os.path.join(self._harvester_workdir, f'{worker_id}-cleanup.sh')
         if os.path.exists(path):
             tmp_log.debug(f'cleaning up after worker_id={worker_id}')
@@ -339,6 +291,13 @@ class DaskMonitor(PluginBase):
                 tmp_log.debug(f'executed {path}')
         else:
             tmp_log.warning(f'path={path} does not exist (failed to cleanup)')
+
+        # clean the harvester workdir for the current job
+        cmd = f'rm -f {self._harvester_workdir}/{task_id}-*'
+        tmp_log.debug(f'cleaning up harvester workdir ({cmd})')
+        ec, stdout, stderr = dask_utils.execute(cmd)
+        if ec:
+            tmp_log.warning(f'failed with ec={ec}, out={stdout+stderr}')
 
     def check_workers(self, workspec_list):
         tmp_log = self.make_logger(base_logger, 'queueName={0}'.format(self.queueName), method_name='check_workers')

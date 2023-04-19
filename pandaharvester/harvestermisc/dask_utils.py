@@ -4,7 +4,7 @@
 # http://www.apache.org/licenses/LICENSE-2.0
 #
 # Authors:
-# - Paul Nilsson, paul.nilsson@cern.ch, 2022
+# - Paul Nilsson, paul.nilsson@cern.ch, 2023
 
 #import logging
 import os
@@ -1031,7 +1031,7 @@ def get_jupyterlab_info(timeout=300, namespace=None):
     return '', podname, stderr
 
 
-def deploy_workers(scheduler_ip, _nworkers, yaml_files, namespace, user_id, imagename, mountpath, workdir, pandaid):
+def deploy_workers(scheduler_ip, _nworkers, yaml_files, namespace, user_id, imagename, mountpath, workdir, pandaid, taskid):
     """
     Deploy the worker pods and return a dictionary with the worker info.
 
@@ -1046,6 +1046,7 @@ def deploy_workers(scheduler_ip, _nworkers, yaml_files, namespace, user_id, imag
     :param mountpath: FS mount path (string).
     :param workdir: path to working directory (string).
     :param pandaid: panda id (int).
+    :param taskid: task id (int).
     :return: worker info dictionary, stderr (dictionary, string).
     """
 
@@ -1053,7 +1054,7 @@ def deploy_workers(scheduler_ip, _nworkers, yaml_files, namespace, user_id, imag
     for _iworker in range(_nworkers):
 
         worker_name = f'dask-worker-{_iworker}-{pandaid}'
-        worker_path = os.path.join(workdir, yaml_files.get('dask-worker') % (pandaid, _iworker))
+        worker_path = os.path.join(workdir, yaml_files.get('dask-worker') % (taskid, _iworker))
         worker_info[worker_name] = worker_path
 
         # create worker yaml

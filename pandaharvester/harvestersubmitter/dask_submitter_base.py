@@ -88,7 +88,7 @@ class DaskSubmitterBase(object):
         self._queuename = kwargs.get('queuename')
         self._remote_proxy = kwargs.get('remote_proxy')
 
-        self._files = {  # pandaid will be added (amd dask worker id in the case of 'dask-worker')
+        self._files = {  # taskid will be added (amd dask worker id in the case of 'dask-worker')
             'dask-scheduler-service': '%d-dask-scheduler-service.yaml',
             'dask-scheduler': '%d-dask-scheduler-deployment.yaml',
             'dask-worker': '%d-dask-worker-deployment-%d.yaml',
@@ -162,7 +162,7 @@ class DaskSubmitterBase(object):
         :return: True if successful, stderr (Boolean, string).
         """
 
-        namespace_filename = os.path.join(self._local_workdir, self._files.get('namespace') % self._pandaid)
+        namespace_filename = os.path.join(self._local_workdir, self._files.get('namespace') % self._taskid)
         base_logger.debug(f'namespace_filename={namespace_filename}, namespace={self._namespace}')
         return dask_utils.create_namespace(self._namespace, namespace_filename)
 
@@ -180,7 +180,7 @@ class DaskSubmitterBase(object):
             return False, stderr
 
         # create the yaml file
-        path = os.path.join(os.path.join(self._local_workdir, self._files.get(name) % self._pandaid))
+        path = os.path.join(os.path.join(self._local_workdir, self._files.get(name) % self._taskid))
         func = dask_utils.get_pvc_yaml if name == 'pvc' else dask_utils.get_pv_yaml
         yaml = func(namespace=self._namespace, user_id=self._userid, nfs_server=self._nfs_server)
         status = dask_utils.write_file(path, yaml)
@@ -204,7 +204,7 @@ class DaskSubmitterBase(object):
         :return: stderr (string).
         """
 
-        fname = self._files.get(name) % self._pandaid
+        fname = self._files.get(name) % self._taskid
         if fname == 'unknown':
             stderr = 'unknown file name for %s yaml' % name
             base_logger.warning(stderr)
@@ -267,7 +267,8 @@ class DaskSubmitterBase(object):
                                                         self._images.get('dask-worker', 'unknown'),
                                                         self._mountpath,
                                                         self._local_workdir,
-                                                        self._pandaid)
+                                                        self._pandaid,
+                                                        self._taskid)
         if not worker_info:
             base_logger.warning('failed to deploy workers: %s', stderr)
             return False, stderr
@@ -294,7 +295,7 @@ class DaskSubmitterBase(object):
         """
 
         # create cleanup yaml
-        path = os.path.join(self._local_workdir, self._files.get('remote-cleanup') % self._pandaid)
+        path = os.path.join(self._local_workdir, self._files.get('remote-cleanup') % self._taskid)
         yaml = dask_utils.get_remote_cleanup_yaml(image_source=self._images.get('remote-cleanup', 'unknown'),
                                                   nfs_path=self._mountpath,
                                                   namespace=self._namespace,
@@ -324,7 +325,7 @@ class DaskSubmitterBase(object):
         """
 
         # create pilot yaml
-        path = os.path.join(self._local_workdir, self._files.get('pilot') % self._pandaid)
+        path = os.path.join(self._local_workdir, self._files.get('pilot') % self._taskid)
         yaml = dask_utils.get_pilot_yaml(pod_name=self._podnames.get('pilot'),
                                          image_source=self._images.get('pilot', 'unknown'),
                                          nfs_path=self._mountpath,
@@ -400,7 +401,7 @@ class DaskSubmitterBase(object):
 
         _stderr = ''
 
-        path = os.path.join(self._local_workdir, self._files.get(servicename) % self._pandaid)
+        path = os.path.join(self._local_workdir, self._files.get(servicename) % self._taskid)
         yaml = dask_utils.get_service_yaml(namespace=self._namespace,
                                           name=self._podnames.get(servicename, 'unknown'),
                                           port=port,
@@ -694,10 +695,10 @@ class DaskSubmitterBase(object):
         # cleanup tmp files
         for filename in self._files:
             if not 'dask-worker-deployment' in self._files.get(filename):
-                path = os.path.join(self._local_workdir, self._files.get(filename) % self._pandaid)
+                path = os.path.join(self._local_workdir, self._files.get(filename) % self._taskid)
                 if os.path.exists(path):
                     base_logger.debug(f'could have removed {path}')
         for worker in range(self._nworkers):
-            path = os.path.join(self._local_workdir, self._files.get('dask-worker') % (self._pandaid, worker))
+            path = os.path.join(self._local_workdir, self._files.get('dask-worker') % (self._taskid, worker))
             if os.path.exists(path):
                 base_logger.debug(f'could have removed {path}')
