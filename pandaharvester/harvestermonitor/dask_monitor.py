@@ -1,6 +1,7 @@
 import datetime
 import os.path
 import time
+from json import loads
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -53,13 +54,12 @@ class DaskMonitor(PluginBase):
         Get the pod_info dictionary containing all the known pod information.
         """
 
-        tmp_log = self.make_logger(base_logger, 'queueName={0} workerID={1} batchID={2}'.
-                                   format(self.queueName, workspec.workerID, workspec.batchID),
+        tmp_log = self.make_logger(base_logger, 'queueName={0}'.format(self.queueName),
                                    method_name='get_pod_info')
 
         pod_info = {}
         cmd = f'kubectl get pod {podname} --output=json -n {namespace}'
-        ec, stdout, stderr = execute(cmd)
+        ec, stdout, stderr = dask_utils.execute(cmd)
         if not ec and stdout:
             _dict = loads(stdout)
 
@@ -91,11 +91,10 @@ class DaskMonitor(PluginBase):
         # pod_info['containers_state'][0]['terminated']['exitCode']
 
         status = False
-        tmp_log = self.make_logger(base_logger, 'queueName={0} workerID={1} batchID={2}'.
-                                   format(self.queueName, workspec.workerID, workspec.batchID),
+        tmp_log = self.make_logger(base_logger, 'queueName={0}'.format(self.queueName),
                                    method_name='get_pilot_exit_code')
         exit_code = 0
-        if not state in pod_info['containers_state'][0]:
+        if state not in pod_info['containers_state'][0]:
             tmp_log.warning(f'state {state} not found in pod_info={pod_info}')
         else:
             try:
