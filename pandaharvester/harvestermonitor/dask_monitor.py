@@ -233,12 +233,11 @@ class DaskMonitor(PluginBase):
         else:
             tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')
         pod_info = self.get_pod_info('pilot', _namespace)
-        tmp_log.debug(f'pod info={pod_info}')
         if pod_info:  # did the pilot finish? if so, get the exit code to see if it finished correctly
             _ec, _status = self.get_pilot_exit_code(pod_info, state='terminated')
             if _status:  # ie an exit code int was correctly received
                 if _ec:
-                    tmp_log(f'pilot failed with exit code: {_ec}')
+                    tmp_log.debug(f'pilot failed with exit code: {_ec}')
                     # clean up
                     dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
                     # remove everything
