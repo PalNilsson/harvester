@@ -239,7 +239,12 @@ class DaskMonitor(PluginBase):
                 if _ec:
                     tmp_log.debug(f'pilot failed with exit code: {_ec}')
                     # clean up
-                    dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
+                    try:
+                        dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
+                    except Exception as exc:
+                        tmp_log.debug(f'caught exception: {exc}')
+                    else:
+                        tmp_log.debug(f'removed {os.path.join(self._tmpdir, str(_taskid))}')
                     # remove everything
                     # ..
                     status = WorkSpec.ST_failed
@@ -250,7 +255,7 @@ class DaskMonitor(PluginBase):
             else:
                 tmp_log.debug('pilot exit code was not extracted')
 
-        if time_now - workspec.podStartTime > datetime.timedelta(seconds=self.podQueueTimeLimit):
+        if workspec.podStartTime and (time_now - workspec.podStartTime > datetime.timedelta(seconds=self.podQueueTimeLimit)):
             err_str = f'worker is out of time: {time_now - workspec.podStartTime} s have passed since start (t={time_now})'
             tmp_log.debug(err_str)
             # clean up
