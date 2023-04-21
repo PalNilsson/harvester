@@ -47,7 +47,7 @@ class DaskSubmitterBase(object):
     _ispv = None
     _username = None
     _password = None
-    _interactive_mode = None
+    _mode = None
     _session_type = None
     _workdir = None
     _pilot_config = None
@@ -74,7 +74,7 @@ class DaskSubmitterBase(object):
         self._ispv = False  # set when PV is successfully created
         self._username = kwargs.get('username')
         self._password = kwargs.get('password')
-        self._interactive_mode = kwargs.get('interactive_mode', True)
+        self._mode = kwargs.get('mode', 'non-interactive')
         self._session_type = kwargs.get('session_type', 'jupyterlab')
         self._local_workdir = kwargs.get('local_workdir')
         self._remote_workdir = kwargs.get('remote_workdir')
@@ -366,7 +366,7 @@ class DaskSubmitterBase(object):
         :return: 'stager' or 'generic' (string).
         """
 
-        return 'stager' if self._interactive_mode else 'generic'
+        return 'stager' if self._mode == 'interactive' else 'generic'
 
     def copy_bundle(self):
         """
@@ -551,7 +551,7 @@ class DaskSubmitterBase(object):
         # store the scheduler pod names, so the monitor can start checking the pod statuses
         self._workspec.namespace = f"namespace={self._namespace}:" \
                                    f"taskid={self._taskid}:" \
-                                   f"mode={self._interactive_mode}:" \
+                                   f"mode={True if self._mode == 'interactive' else False}:" \
                                    f"dask-scheduler_pod_name={service_info['dask-scheduler'].get('pod_name')}:" \
                                    f"session_pod_name={service_info['jupyterlab'].get('pod_name')}:" \
                                    f"pilot_pod_name={self._podnames.get('pilot')}"  # pilot pod not created yet

@@ -58,6 +58,10 @@ ERROR_REMOTEDIR = 10
 # default user secrets (overwritten by job definition)
 USERNAME = 'user'
 PASSWORD = 'user'
+MAX_WORKERS = 3
+DEFAULT_WORKERS = 3
+MODES = ['interactive', 'non_interactive']
+DEFAULT_MODE = 'non_interactive'
 
 # submitter for Dask
 class DaskSubmitter(PluginBase):
@@ -432,25 +436,15 @@ class DaskSubmitter(PluginBase):
 
             # input parameters [to be passed to the install function]
             harvester_workdir = os.environ.get('HARVESTER_WORKDIR', '/data/atlpan/harvester/workdir')
-            nworkers = 2  # number of dask workers
-            interactive_mode = True  # True means interactive jupyterlab session, False means pilot pod runs user payload
             session_type = 'jupyterlab'  # Later try with 'ContainerSSH'
             userid = ''.join(random.choice(ascii_lowercase) for _ in range(5))  # unique 5-char user id (basically for K8)
             namespace = f'single-user-{userid}'
             work_spec.namespace = namespace
             tmp_log.debug(f'using namespace={work_spec.namespace}')
-            # try statement in case secrets are not provided in job_spec
-            try:
-                username, password = self.get_secrets(job_spec)
-            except Exception as exc:
-                tmp_log.warning(f'exception caught: {exc}')
-                username = USERNAME
-                password = PASSWORD
-                # return (False, 'no user secrets found')
+            secrets = self.get_secrets(job_spec)
 
             # get the user image, if set
             user_image = self.get_user_image(job_spec)
-            tmp_log.debug(f'user image={user_image}')
 
             # store the remote directory path for later removal (return error code in case of failure)
             # exit_code, diagnostics = store_remote_directory_path(job_spec.PandaID)
@@ -458,10 +452,10 @@ class DaskSubmitter(PluginBase):
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
-            submitter = DaskSubmitterBase(nworkers=nworkers,
-                                          username=username,
-                                          password=password,
-                                          interactive_mode=interactive_mode,
+            submitter = DaskSubmitterBase(nworkers=secrets.get('workers'),
+                                          username=secrets.get('username'),
+                                          password=secrets.get('password'),
+                                          mode=secrets.get('mode'),
                                           session_type=session_type,
                                           local_workdir=harvester_workdir,
                                           remote_workdir=self._remote_workdir,
@@ -510,7 +504,7 @@ class DaskSubmitter(PluginBase):
                         work_spec.set_status(WorkSpec.ST_submitted)
                         job_spec.status = 'submitted'
                 # done, cleanup and exit
-                if interactive_mode:
+                if secrets.get('mode') == 'interactive':
                     # create the clean-up script [eventually to be executed by sweeper instead of executing cleanup() below?]
                     submitter.create_cleanup_script(work_spec.workerID)
                 else:
@@ -542,15 +536,19 @@ class DaskSubmitter(PluginBase):
     def get_secrets(self, job_spec):
         """
         Extract the secret user information.
+        Also extract additional user information, specifically requested running mode and number of dask workers.
+        Format: { 'username': <string>, 'password': <string>, 'workers': <int>, 'mode': <interactive|non_interactive (default)> }
 
         :param job_spec: job spec dictionary.
-        :return: username (string), password (string).
+        :return: secrets (dictionary).
         """
 
         tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='get_secrets')
 
         username = USERNAME
         password = PASSWORD
+        mode = DEFAULT_MODE
+        workers = DEFAULT_WORKERS
         _secret = None
 
         job_spec_dict = dask_utils.to_dict(job_spec)
@@ -563,12 +561,16 @@ class DaskSubmitter(PluginBase):
                 break
             if _secret:
                 _secret = json.loads(_secret)
-                username = _secret.get('username', 'user')
-                password = _secret.get('password', 'trustno1')
+                username = _secret.get('username', USERNAME)
+                password = _secret.get('password', PASSWORD)
+                mode = _secret.get('mode', DEFAULT_MODE)
+                mode = mode if mode in MODES else DEFAULT_MODE
+                workers = _secret.get('workers', DEFAULT_WORKERS)
+                workers = workers if workers <= MAX_WORKERS else DEFAULT_WORKERS
         else:
             tmp_log.warning(f'no secrets in job definition - using default values (panda id={job_spec.PandaID})')
 
-        return username, password
+        return {'username': username, 'password': password, 'mode': mode, 'workers': workers}
 
     def get_user_image(self, job_spec):
         """
