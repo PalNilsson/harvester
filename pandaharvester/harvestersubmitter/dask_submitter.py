@@ -452,7 +452,7 @@ class DaskSubmitter(PluginBase):
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
-            submitter = DaskSubmitterBase(nworkers=secrets.get('workers'),
+            submitter = DaskSubmitterBase(nworkers=secrets.get('workers', 1),
                                           username=secrets.get('username'),
                                           password=secrets.get('password'),
                                           mode=secrets.get('mode'),
@@ -569,6 +569,11 @@ class DaskSubmitter(PluginBase):
                 workers = workers if workers <= MAX_WORKERS else DEFAULT_WORKERS
         else:
             tmp_log.warning(f'no secrets in job definition - using default values (panda id={job_spec.PandaID})')
+
+        # protection against too many workers
+        if workers > MAX_WORKERS:
+            tmp_log.warning(f'reducing number of workers from {workers} to max allowed {MAX_WORKERS}')
+            workers = MAX_WORKERS
 
         return {'username': username, 'password': password, 'mode': mode, 'workers': workers}
 
