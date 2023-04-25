@@ -246,9 +246,7 @@ class DaskSubmitterBase(object):
         :return: IP number (string), pod name (string), stderr (string).
         """
 
-        base_logger.debug(f'get_service_info called for service={service}')
         func = dask_utils.get_scheduler_info if service == 'dask-scheduler' else dask_utils.get_jupyterlab_info
-        base_logger.debug(f'selected func={func}')
         return func(namespace=self._namespace)
 
     def deploy_dask_workers(self, scheduler_ip=''):
@@ -534,7 +532,7 @@ class DaskSubmitterBase(object):
                 base_logger.info(f'pod {_pod_name} started correctly')
 
         # jupyterlab ip's and pod name are not set for non-interactive mode, set to None and not_used
-        if self._mode == 'non_interative':
+        if self._mode == 'non_interactive':
             service_info['jupyterlab']['external_ip'] = None
             service_info['jupyterlab']['internal_ip'] = None
             service_info['jupyterlab']['pod_name'] = 'not_used'
@@ -556,7 +554,7 @@ class DaskSubmitterBase(object):
                                    f"dask-scheduler_pod_name={service_info['dask-scheduler'].get('pod_name')}:" \
                                    f"session_pod_name={service_info['jupyterlab'].get('pod_name')}:" \
                                    f"pilot_pod_name={self._podnames.get('pilot')}"  # pilot pod not created yet
-
+        base_logger.debug(f'encoded namespace={self._workspec.namespace}')
         # deploy the pilot pod, but do not wait for it to start (will be done by the dask monitor)
         status, stderr = self.deploy_pilot()
         if not status:
