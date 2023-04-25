@@ -1119,8 +1119,11 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
         if jupyter_pod_name:
             workers_list.remove(jupyter_pod_name)
         for running_worker in running_workers:
-            workers_list.remove(running_worker)
-
+            if running_worker in workers_list:
+                workers_list.remove(running_worker)
+            else:
+                if len(workers_list) < 10:
+                    base_logger.debug(f'{running_worker} not in workers list={workers_list}')
         # check the states
         if counter == 0:
             base_logger.debug(f'counter={counter} workers_list={workers_list}')
