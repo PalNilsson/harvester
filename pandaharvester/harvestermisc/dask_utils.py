@@ -1114,16 +1114,20 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
 
         # get list of workers and get rid of the scheduler and workers that are already known to be running
         workers_list = list(dictionary.keys())
-        if scheduler_pod_name:
-            workers_list.remove(scheduler_pod_name)
-        if jupyter_pod_name:
-            workers_list.remove(jupyter_pod_name)
+        for pod_name in [scheduler_pod_name, jupyter_pod_name]:
+            if pod_name and pod_name in workers_list:
+                workers_list.remove(pod_name)
+            else:
+                if len(workers_list) < 10:
+                    base_logger.debug(f'{pod_name} not in workers list={workers_list}')
+
         for running_worker in running_workers:
             if running_worker in workers_list:
                 workers_list.remove(running_worker)
             else:
                 if len(workers_list) < 10:
                     base_logger.debug(f'{running_worker} not in workers list={workers_list}')
+
         # check the states
         if counter == 0:
             base_logger.debug(f'counter={counter} workers_list={workers_list}')
