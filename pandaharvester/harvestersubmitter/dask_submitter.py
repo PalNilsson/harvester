@@ -444,7 +444,7 @@ class DaskSubmitter(PluginBase):
             secrets = self.get_secrets(job_spec)
 
             # hardcoded mode for now
-            mode = 'interactive'
+            mode = 'non_interactive'
             workers = 4
 
             # protection against too many workers
