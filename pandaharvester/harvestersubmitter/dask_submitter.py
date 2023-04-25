@@ -443,6 +443,15 @@ class DaskSubmitter(PluginBase):
             tmp_log.debug(f'using namespace={work_spec.namespace}')
             secrets = self.get_secrets(job_spec)
 
+            # hardcoded mode for now
+            mode = 'interactive'
+            workers = 4
+
+            # protection against too many workers
+            if workers > MAX_WORKERS:
+                tmp_log.warning(f'reducing number of workers from {workers} to max allowed {MAX_WORKERS}')
+                workers = MAX_WORKERS
+
             # get the user image, if set
             user_image = self.get_user_image(job_spec)
 
@@ -452,10 +461,10 @@ class DaskSubmitter(PluginBase):
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
-            submitter = DaskSubmitterBase(nworkers=secrets.get('workers', 1),
+            submitter = DaskSubmitterBase(nworkers=workers,
                                           username=secrets.get('username'),
                                           password=secrets.get('password'),
-                                          mode=secrets.get('mode'),
+                                          mode=mode,
                                           session_type=session_type,
                                           local_workdir=harvester_workdir,
                                           remote_workdir=self._remote_workdir,
@@ -504,7 +513,7 @@ class DaskSubmitter(PluginBase):
                         work_spec.set_status(WorkSpec.ST_submitted)
                         job_spec.status = 'submitted'
                 # done, cleanup and exit
-                if secrets.get('mode') == 'interactive':
+                if mode == 'interactive':
                     # create the clean-up script [eventually to be executed by sweeper instead of executing cleanup() below?]
                     submitter.create_cleanup_script(work_spec.workerID)
                 else:
@@ -535,9 +544,8 @@ class DaskSubmitter(PluginBase):
 
     def get_secrets(self, job_spec):
         """
-        Extract the secret user information.
-        Also extract additional user information, specifically requested running mode and number of dask workers.
-        Format: { 'username': <string>, 'password': <string>, 'workers': <int>, 'mode': <interactive|non_interactive (default)> }
+        Extract and return the secret user information.
+        Format: { 'username': <string>, 'password': <string> }
 
         :param job_spec: job spec dictionary.
         :return: secrets (dictionary).
@@ -547,8 +555,6 @@ class DaskSubmitter(PluginBase):
 
         username = USERNAME
         password = PASSWORD
-        mode = DEFAULT_MODE
-        workers = DEFAULT_WORKERS
         _secret = None
 
         job_spec_dict = dask_utils.to_dict(job_spec)
@@ -564,19 +570,10 @@ class DaskSubmitter(PluginBase):
                 _secret = json.loads(_secret)
                 username = _secret.get('username', USERNAME)
                 password = _secret.get('password', PASSWORD)
-                mode = _secret.get('mode', DEFAULT_MODE)
-                mode = mode if mode in MODES else DEFAULT_MODE
-                workers = _secret.get('workers', DEFAULT_WORKERS)
-                workers = workers if workers <= MAX_WORKERS else DEFAULT_WORKERS
         else:
             tmp_log.warning(f'no secrets in job definition - using default values (panda id={job_spec.PandaID})')
 
-        # protection against too many workers
-        if workers > MAX_WORKERS:
-            tmp_log.warning(f'reducing number of workers from {workers} to max allowed {MAX_WORKERS}')
-            workers = MAX_WORKERS
-
-        return {'username': username, 'password': password, 'mode': mode, 'workers': workers}
+        return {'username': username, 'password': password}
 
     def get_user_image(self, job_spec):
         """
