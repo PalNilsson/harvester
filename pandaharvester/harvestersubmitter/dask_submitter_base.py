@@ -531,12 +531,6 @@ class DaskSubmitterBase(object):
             else:
                 base_logger.info(f'pod {_pod_name} started correctly')
 
-        # jupyterlab ip's and pod name are not set for non-interactive mode, set to None and not_used
-        if self._mode == 'non_interactive':
-            service_info['jupyterlab']['external_ip'] = None
-            service_info['jupyterlab']['internal_ip'] = None
-            service_info['jupyterlab']['pod_name'] = 'not_used'
-
         timing['tserviceinfo'] = time.time()
         if exitcode:
             return exitcode, {}, stderr
@@ -548,11 +542,12 @@ class DaskSubmitterBase(object):
         # status = dask_utils.kubectl_execute(cmd='config use-context', namespace='default')
 
         # store the scheduler pod names, so the monitor can start checking the pod statuses
+        session_pod_name = service_info['jupyterlab'].get('pod_name') if self._mode == 'interactive' else 'not_used'
         self._workspec.namespace = f"namespace={self._namespace}:" \
                                    f"taskid={self._taskid}:" \
                                    f"mode={True if self._mode == 'interactive' else False}:" \
                                    f"dask-scheduler_pod_name={service_info['dask-scheduler'].get('pod_name')}:" \
-                                   f"session_pod_name={service_info['jupyterlab'].get('pod_name')}:" \
+                                   f"session_pod_name={session_pod_name}:" \
                                    f"pilot_pod_name={self._podnames.get('pilot')}"  # pilot pod not created yet
         base_logger.debug(f'encoded namespace={self._workspec.namespace}')
         # deploy the pilot pod, but do not wait for it to start (will be done by the dask monitor)
