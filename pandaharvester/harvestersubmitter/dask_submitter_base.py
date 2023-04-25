@@ -249,7 +249,7 @@ class DaskSubmitterBase(object):
         func = dask_utils.get_scheduler_info if service == 'dask-scheduler' else dask_utils.get_jupyterlab_info
         return func(namespace=self._namespace)
 
-    def deploy_dask_workers(self, scheduler_ip='', scheduler_pod_name='', jupyter_pod_name=''):
+    def deploy_dask_workers(self, scheduler_ip=''):
         """
         Deploy all dask workers.
 
@@ -273,16 +273,6 @@ class DaskSubmitterBase(object):
             base_logger.warning('failed to deploy workers: %s', stderr)
             return False, stderr
 
-        # wait for the worker pods to start
-        # (send any scheduler and jupyter pod name to function so they can be removed from a query)
-        #try:
-        #    status = dask_utils.await_worker_deployment(self._namespace,
-        #                                               scheduler_pod_name=scheduler_pod_name,
-        #                                               jupyter_pod_name=jupyter_pod_name)
-        #except Exception as exc:
-        #    stderr = 'caught exception: %s', exc
-        #    base_logger.warning(stderr)
-        #   status = False
         status = True if not stderr else False
         return status, stderr
 
@@ -476,7 +466,9 @@ class DaskSubmitterBase(object):
         # create the dask scheduler service with a load balancer (the external IP of the load balancer will be made
         # available to the caller)
         # [wait until external IP is available]
-        services = ['dask-scheduler', 'jupyterlab']
+        services = ['dask-scheduler']
+        if self._mode == 'interactive':
+            services.append('jupyterlab')
         for service in services:
             _service = service + '-service'
             ports = self.get_ports(_service)
@@ -538,6 +530,13 @@ class DaskSubmitterBase(object):
                 base_logger.info(f'pod {_pod_name} with internal ip={internal_ip} started correctly')
             else:
                 base_logger.info(f'pod {_pod_name} started correctly')
+
+        # jupyterlab ip's and pod name are not set for non-interactive mode, set to None and not_used
+        if self._mode == 'non_interative':
+            service_info['jupyterlab']['external_ip'] = None
+            service_info['jupyterlab']['internal_ip'] = None
+            service_info['jupyterlab']['pod_name'] = 'not_used'
+
         timing['tserviceinfo'] = time.time()
         if exitcode:
             return exitcode, {}, stderr
@@ -564,9 +563,7 @@ class DaskSubmitterBase(object):
             return ERROR_PILOT, {}, stderr
 
         # deploy the worker pods, but do not wait for them to start (will be done by the dask monitor)
-        status, stderr = self.deploy_dask_workers(scheduler_ip=service_info['dask-scheduler'].get('internal_ip'),
-                                                  scheduler_pod_name=service_info['dask-scheduler'].get('pod_name'),
-                                                  jupyter_pod_name=service_info['jupyterlab'].get('pod_name'))
+        status, stderr = self.deploy_dask_workers(scheduler_ip=service_info['dask-scheduler'].get('internal_ip'))
         if not status:
             stderr = f'failed to deploy dask workers: {stderr}'
             base_logger.warning(stderr)

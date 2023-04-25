@@ -1115,7 +1115,9 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
         # get list of workers and get rid of the scheduler and workers that are already known to be running
         workers_list = list(dictionary.keys())
         for pod_name in [scheduler_pod_name, jupyter_pod_name]:
-            if pod_name and pod_name in workers_list:
+            if pod_name == 'not_used' or not pod_name:
+                continue
+            if pod_name in workers_list:
                 workers_list.remove(pod_name)
             else:
                 if len(workers_list) < 10:
