@@ -564,7 +564,6 @@ class DaskSubmitter(PluginBase):
         secrets_str = job.get('secrets', None)  # json string
         if secrets_str:
             secrets = json.loads(secrets_str)
-            tmp_log.debug(f'secrets={secrets}')
             for key in secrets.keys():
                 _secret = secrets[key]
                 break
