@@ -246,7 +246,9 @@ class DaskSubmitterBase(object):
         :return: IP number (string), pod name (string), stderr (string).
         """
 
+        base_logger.debug(f'get_service_info called for service={service}')
         func = dask_utils.get_scheduler_info if service == 'dask-scheduler' else dask_utils.get_jupyterlab_info
+        base_logger.debug(f'selected func={func}')
         return func(namespace=self._namespace)
 
     def deploy_dask_workers(self, scheduler_ip=''):

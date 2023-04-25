@@ -208,6 +208,7 @@ def get_pod_name(namespace=None, pattern=r'(dask\-scheduler\-.+)'):
 
     podname = ''
 
+    base_logger.debug(f'get_pod_name called for namespace {namespace}, pattern={pattern}')
     cmd = 'kubectl get pods --namespace %s' % namespace
     exitcode, stdout, stderr = execute(cmd)
 
@@ -944,6 +945,7 @@ def get_scheduler_info(timeout=480, namespace=None):
 
     scheduler_ip = ""
 
+    base_logger.debug('get_scheduler_info called')
     podname = get_pod_name(namespace=namespace, pattern=r'(dask\-scheduler\-.+)')
     base_logger.debug(f'calling wait_until_deployment for name={podname}')
     status, _, stderr = wait_until_deployment(name=podname, state='Running', timeout=300, namespace=namespace, deployment=False)
