@@ -1280,12 +1280,12 @@ def extract_pod_info(namespace):
     The 'session' would typically be jupyterlab.
 
     :param namespace: encoded name space (string).
-    :return: actual name space (str), task id (str), interactive mode (Boolean), scheduler pod name (str), session pod name (str), pilot pod name (str).
+    :return: actual name space (str), task id (str), interactive mode (str), scheduler pod name (str), session pod name (str), pilot pod name (str).
     """
 
     _namespace = ''
     _taskid = ''
-    _mode = None
+    _mode = ''
     _scheduler_pod_name = ''
     _session_pod_name = ''
     _pilot_pod_name = ''
@@ -1294,7 +1294,7 @@ def extract_pod_info(namespace):
         info = re.findall(pattern, namespace)
         _namespace = info[0][0]
         _taskid = info[0][1]
-        _mode = bool(info[0][2])
+        _mode = info[0][2]
         _scheduler_pod_name = info[0][3]
         _session_pod_name = info[0][4]
         _pilot_pod_name = info[0][5]

@@ -436,7 +436,6 @@ class DaskSubmitter(PluginBase):
 
             # input parameters [to be passed to the install function]
             harvester_workdir = os.environ.get('HARVESTER_WORKDIR', '/data/atlpan/harvester/workdir')
-            session_type = 'jupyterlab'  # Later try with 'ContainerSSH'
             userid = ''.join(random.choice(ascii_lowercase) for _ in range(5))  # unique 5-char user id (basically for K8)
             namespace = f'single-user-{userid}'
             work_spec.namespace = namespace
@@ -465,7 +464,6 @@ class DaskSubmitter(PluginBase):
                                           username=secrets.get('username'),
                                           password=secrets.get('password'),
                                           mode=mode,
-                                          session_type=session_type,
                                           local_workdir=harvester_workdir,
                                           remote_workdir=self._remote_workdir,
                                           pilot_config=os.path.join(self._mountpath, 'default.cfg'),
@@ -493,15 +491,17 @@ class DaskSubmitter(PluginBase):
                     # IP numbers should now be known
                     info = '\ndask scheduler has external ip %s' % service_info['dask-scheduler'].get('external_ip')
                     info += '\ndask scheduler has internal ip %s' % service_info['dask-scheduler'].get('internal_ip')
-                    info += '\njupyterlab has external ip %s' % service_info['jupyterlab'].get('external_ip')
+                    if 'jupyterlab' in service_info:  # ie in interactive mode
+                        info += '\njupyterlab has external ip %s' % service_info['jupyterlab'].get('external_ip')
                     tmp_log.info(info)
 
                     # communicate IP numbers to pilot pod via the job definition
                     # i.e. now it's time to place the job definition in the shared area, /mnt/dask/[job id]
                     # create the job definition both locally and remotely
+                    session_ip = service_info['jupyterlab'].get('external_ip') if 'jupyterlab' in service_info else None
                     exit_code, diagnostics = self.place_job_def(job_spec=job_spec,
                                                                 scheduler_ip=service_info['dask-scheduler'].get('internal_ip'),
-                                                                session_ip=service_info['jupyterlab'].get('external_ip'))
+                                                                session_ip=session_ip)
                     if exit_code:
                         # handle error
                         err_str = f'place_job_def() failed with exit code {exit_code} (aborting)'

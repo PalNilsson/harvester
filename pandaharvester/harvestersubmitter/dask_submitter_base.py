@@ -48,7 +48,6 @@ class DaskSubmitterBase(object):
     _username = None
     _password = None
     _mode = None
-    _session_type = None
     _workdir = None
     _pilot_config = None
     _remote_workdir = None
@@ -75,7 +74,6 @@ class DaskSubmitterBase(object):
         self._username = kwargs.get('username')
         self._password = kwargs.get('password')
         self._mode = kwargs.get('mode', 'non-interactive')
-        self._session_type = kwargs.get('session_type', 'jupyterlab')
         self._local_workdir = kwargs.get('local_workdir')
         self._remote_workdir = kwargs.get('remote_workdir')
         self._remote_workdir = self._remote_workdir.split(':')[-1] if ':' in self._remote_workdir else self._remote_workdir
@@ -545,7 +543,7 @@ class DaskSubmitterBase(object):
         session_pod_name = service_info['jupyterlab'].get('pod_name') if self._mode == 'interactive' else 'not_used'
         self._workspec.namespace = f"namespace={self._namespace}:" \
                                    f"taskid={self._taskid}:" \
-                                   f"mode={True if self._mode == 'interactive' else False}:" \
+                                   f"mode={self._mode}:" \
                                    f"dask-scheduler_pod_name={service_info['dask-scheduler'].get('pod_name')}:" \
                                    f"session_pod_name={session_pod_name}:" \
                                    f"pilot_pod_name={self._podnames.get('pilot')}"  # pilot pod not created yet
