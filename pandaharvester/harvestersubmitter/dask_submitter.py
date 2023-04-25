@@ -514,9 +514,11 @@ class DaskSubmitter(PluginBase):
                         job_spec.status = 'submitted'
                 # done, cleanup and exit
                 if mode == 'interactive':
+                    tmp_log.debug('creating cleanup script')
                     # create the clean-up script [eventually to be executed by sweeper instead of executing cleanup() below?]
                     submitter.create_cleanup_script(work_spec.workerID)
                 else:
+                    tmp_log.debug('non-interactive mode, clean up')
                     # pilot pod should be done - clean-up everything (skip if sweeper deletes everything?)
                     submitter.cleanup(namespace=submitter.get_namespace(), user_id=submitter.get_userid(), pvc=True, pv=True)
                 submitter.timing_report(timing, info=info)
