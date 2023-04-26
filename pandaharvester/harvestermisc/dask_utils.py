@@ -961,9 +961,8 @@ def get_scheduler_info(timeout=480, namespace=None):
 
     scheduler_ip = ""
 
-    base_logger.debug('get_scheduler_info called')
+    time.sleep(5)  # give the pod some time to start so that its name gets registered
     podname = get_pod_name(namespace=namespace, pattern=r'(dask\-scheduler\-.+)')
-    base_logger.debug(f'calling wait_until_deployment for name={podname}')
     status, _, stderr = wait_until_deployment(name=podname, state='Running', timeout=300, namespace=namespace, deployment=False)
     if not status:
         return scheduler_ip, podname, stderr
@@ -1009,8 +1008,8 @@ def get_jupyterlab_info(timeout=300, namespace=None):
     :return: unused string (string), pod name (string), stderr (string).
     """
 
+    time.sleep(5)  # give the pod some time to start so that its name gets registered
     podname = get_pod_name(namespace=namespace, pattern=r'(jupyterlab\-.+)')
-    base_logger.debug(f'calling wait_until_deployment for name={podname}')
     _, _, stderr = wait_until_deployment(name=podname, state='Running', timeout=300, namespace=namespace, deployment=False)
     if stderr:
         return '', podname, stderr
