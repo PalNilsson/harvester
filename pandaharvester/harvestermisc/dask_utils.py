@@ -209,12 +209,28 @@ def get_pod_name(namespace=None, pattern=r'(dask\-scheduler\-.+)'):
     podname = ''
 
     base_logger.debug(f'get_pod_name called for namespace {namespace}, pattern={pattern}')
-    cmd = 'kubectl get pods --namespace %s' % namespace
-    exitcode, stdout, stderr = execute(cmd)
+    max_attempts = 10
+    attempt = 0
+    found = False
+    nap = 6  # seconds
+    while attempt < max_attempts:
+        cmd = 'kubectl get pods --namespace %s' % namespace
+        exitcode, stdout, stderr = execute(cmd)
+        if stderr:
+            base_logger.warning('failed:\n%s', stderr)
+            attempt += 1
+            if attempt < max_attempts:
+                base_logger(f'taking a {nap}s nap (attempt #{attempt}/{max_attempts})')
+                time.sleep(nap)
+                continue
+        else:
+            found = True
+            break
 
-    if stderr:
-        base_logger.warning('failed:\n%s', stderr)
+    if not found:
+        base_logger.warning(f'did not find any pods after {attempt} attempts')
         return podname
+
     dictionary = _convert_to_dict(stdout)
 
     if dictionary:
