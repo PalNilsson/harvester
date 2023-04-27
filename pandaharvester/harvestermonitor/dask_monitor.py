@@ -46,7 +46,7 @@ class DaskMonitor(PluginBase):
         try:
             self.podQueueTimeLimit
         except AttributeError:
-            self.podQueueTimeLimit = 15 * 60  #172800
+            self.podQueueTimeLimit = 24 * 60 * 60
 
         self._all_pods_list = []
 
@@ -255,7 +255,9 @@ class DaskMonitor(PluginBase):
                 else:
                     tmp_log.debug('pilot pod has finished correctly')
                     # if non-interactive mode, terminate everything
-                    # ..
+                    if _mode == 'non_interactive':
+                        self.delete_job(workspec.workerID, _taskid)
+                    status = WorkSpec.ST_finished  # set finished so the job is not retried (??)
             else:
                 tmp_log.debug('pilot exit code was not extracted')
 
@@ -270,9 +272,9 @@ class DaskMonitor(PluginBase):
 
         # supplemental diag messages
         sup_error_code = WorkerErrors.error_codes.get('GENERAL_ERROR') if err_str else WorkerErrors.error_codes.get('SUCCEEDED')
-        sup_error_diag = 'PODs=' + ','.join(pods_sup_diag_list) + ' ; ' + err_str
+        sup_error_diag = 'PODs=' + ','.join(pods_sup_diag_list) + ' ; ' + err_str if err_str else ''
         workspec.set_supplemental_error(error_code=sup_error_code, error_diag=sup_error_diag)
-        tmp_log.debug(f'setting workspec status={status}')
+        tmp_log.debug(f'setting workspec status={status}, sup_error_code={sup_error_code}, sup_error_diag={sup_error_diag}')
         workspec.set_status(status)
         return status, err_str
 
