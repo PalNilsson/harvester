@@ -30,6 +30,7 @@ from pandaharvester.harvestercore.queue_config_mapper import QueueConfigMapper
 from pandaharvester.harvestermisc import dask_utils
 from pandaharvester.harvestersubmitter.dask_submitter_base import DaskSubmitterBase
 from pandaharvester.harvestercore.work_spec import WorkSpec
+from pandaharvester.harvestercore.worker_errors import WorkerErrors
 
 # logger
 base_logger = core_utils.setup_logger('dask_submitter')
@@ -603,6 +604,10 @@ class DaskSubmitter(PluginBase):
 
         for workspec in workspec_list:
             tmp_log.debug(f'status={workspec.status}')
+            if workspec.status == WorkSpec.ST_submitted:
+                sup_error_code = WorkerErrors.error_codes.get('SUCCEEDED')
+                sup_error_diag = ''
+                workspec.set_supplemental_error(error_code=sup_error_code, error_diag=sup_error_diag)
         tmp_log.debug('done')
 
         return list(ret_val_list)
