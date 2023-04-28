@@ -1117,6 +1117,8 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
     status = True
     pods = {}
     counter = 0
+    terminal_states = ['ContainerStatusUnknown', 'Running', 'Completed', 'Error']
+
     while processing and (now - starttime < timeout):
 
         if counter == 0:
@@ -1161,7 +1163,7 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
                 stderr = 'caught exception: {exc}'
                 base_logger.warning(stderr)
             else:
-                if state == 'Running' or state == 'Completed' or state == 'Error':
+                if state in terminal_states:
                     running_workers.append(worker_name)
                     #base_logger.debug(f'{worker_name} is in state \"{state}\"')
                 if counter == 0:
