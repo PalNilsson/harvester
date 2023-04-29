@@ -79,8 +79,6 @@ class DaskSubmitter(PluginBase):
     _nfs_server = "10.173.46.194"  #"10.204.201.2"  # "10.132.0.82"  # "10.226.152.66"
     _project = "gke-dev-311213"
     _zone = "europe-west1-b"
-    _local_workdir = ''
-    _remote_workdir = ''  # only set this once the remote workdir has been created
     _mountpath = 'nfs-client2:/mnt/dask'
     _remote_proxy = ''
 
@@ -230,16 +228,17 @@ class DaskSubmitter(PluginBase):
 
         return exit_code, diagnostics
 
-    def place_job_def(self, job_spec=None, scheduler_ip=None, session_ip=None):
+    def place_job_def(self, local_workdir, job_spec=None, scheduler_ip=None, session_ip=None):
         """
         Create and place the job definition file in the default user area.
-        If self._local_workdir exists after this function has finished, it will be removed as it is no longer needed.
+        If local_workdir exists after this function has finished, it will be removed as it is no longer needed.
 
         Scheduler IP is the internal IP number for the dask scheduler.
         Session IP is the external IP number for the session (e.g. jupyterlab).
         These IP numbers are added to the job definition dictionary sent to the pilot pod, which will add them to the
         job metrics message sent to the PanDA server (updateJob instruction).
 
+        :param local_workdir: local workdir (string).
         :param job_spec: job spec object.
         :param scheduler_ip: dask scheduler internal IP (string).
         :param session_ip: session external IP (string).
@@ -266,16 +265,16 @@ class DaskSubmitter(PluginBase):
         tmp_log.debug(f'job_spec_dict={job_spec_dict}')
 
         # place the job def in the local workdir and move it recursively to the remote shared file system
-        filepath = os.path.join(self._local_workdir, f'pandaJobData.out')
+        filepath = os.path.join(local_workdir, f'pandaJobData.out')
         try:
             # create job def in local dir - to be moved to remove location
             with open(filepath, 'w') as _file:
                 json.dump(job_spec_dict, _file)
             tmp_log.debug(f'wrote file {filepath}')
-            tmp_log.debug(f'attempting to copy {self._local_workdir} to remote FileStore')
+            tmp_log.debug(f'attempting to copy {local_workdir} to remote FileStore')
             # only file copy: cmd = f'gcloud compute scp {filepath} {self._mountpath} --project {self._project} --zone {self._zone}'
             # copy local dir: e.g. gcloud compute scp --recurse /tmp/panda/12345678 nfs-client:/mnt/dask --project "gke-dev-311213" --zone "europe-west1-b"
-            cmd = f'gcloud compute scp --recurse {self._local_workdir} {self._mountpath} --project {self._project} --zone {self._zone}'
+            cmd = f'gcloud compute scp --recurse {local_workdir} {self._mountpath} --project {self._project} --zone {self._zone}'
             exitcode, stdout, stderr = dask_utils.execute(cmd)
             if stderr:
                 exit_code = ERROR_WRITEFILE if exitcode == 0 else exitcode
@@ -288,31 +287,6 @@ class DaskSubmitter(PluginBase):
             tmp_log.error(diagnostics)
             exit_code = ERROR_WRITEFILE
             return exit_code, diagnostics
-
-        return exit_code, diagnostics
-
-    def store_remote_directory_path(self, pandaid):
-        """
-        Extract and store the path to the remote directory.
-
-        :param pandaid: PanDA id (int).
-        :return: exit code (int), diagnostics (string).
-        """
-
-        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='store_remote_directory')
-        exit_code = 0
-        diagnostics = ''
-
-        pattern = r'[A-Za-z\-]+\:(.+)'
-        found = re.findall(pattern, self._mountpath)
-        if found:
-            # set the full path to the remote directory - this will later be sent to the remote-cleanup pod
-            self._remote_workdir = os.path.join(found[0], f'{pandaid}')
-            tmp_log.debug(f'remote workdir={self._remote_workdir}')
-        else:
-            diagnostics = f'failed to set _remote_workdir from pattern={pattern}, _mountpath={self._mountpath}, PandaID={pandaid}'
-            tmp_log.error(diagnostics)
-            exit_code = ERROR_REMOTEDIR
 
         return exit_code, diagnostics
 
@@ -329,20 +303,19 @@ class DaskSubmitter(PluginBase):
 
         return yaml_content
 
-    def create_workdir(self, name):
+    def create_workdir(self, local_workdir):
         """
         Create the local workdir.
         Directory is created inside self._tmpdir.
 
-        :param name: directory name (string)
+        :param local_workdir: directory name (string)
         :return: exit code (int), diagnostics (string).
         """
 
         exit_code = 0
         diagnostics = ""
 
-        self._local_workdir = os.path.join(self._tmpdir, f'{name}')
-        dirs = [self._tmpdir, self._local_workdir]
+        dirs = [self._tmpdir, local_workdir]
         for directory in dirs:
             exit_code, diagnostics = self.makedir(directory)
 
@@ -376,8 +349,6 @@ class DaskSubmitter(PluginBase):
 
         nspace = self.get_number_of_namespaces()
         tmp_log.debug(f'there are {nspace} namespaces')
-        if nspace > 4:
-            tmp_log.debug('should probably return for now')
 
         if work_spec.status == WorkSpec.ST_running or work_spec.status == WorkSpec.ST_failed:
             err_str = 'this job has already been processed'
@@ -402,8 +373,10 @@ class DaskSubmitter(PluginBase):
         job_spec = job_spec_list[0]
 
         # create the job work dir locally
-        exit_code, diagnostics = self.create_workdir(job_spec.taskID)
+        local_workdir = os.path.join(self._tmpdir, f'{job_spec.taskID}')
+        exit_code, diagnostics = self.create_workdir(local_workdir)
         if exit_code != 0:
+            tmp_log.warning(f'create_workdir() failed with ec={ERROR_MKDIR} (returning)')
             return exit_code, diagnostics
 
         # k8s_yaml_file=/data/atlpan/k8_configs/job_prp_driver_ssd.yaml
@@ -456,8 +429,7 @@ class DaskSubmitter(PluginBase):
             user_image = self.get_user_image(job_spec)
 
             # store the remote directory path for later removal (return error code in case of failure)
-            # exit_code, diagnostics = store_remote_directory_path(job_spec.PandaID)
-            self._remote_workdir = os.path.join(self._mountpath, str(job_spec.taskID))
+            remote_workdir = os.path.join(self._mountpath, f'{job_spec.taskID}')
 
             # instantiate the base dask submitter here
             tmp_log.debug(f'initializing DaskSubmitterBase for user {userid} in namespace {namespace}')
@@ -466,7 +438,7 @@ class DaskSubmitter(PluginBase):
                                           password=secrets.get('password'),
                                           mode=mode,
                                           local_workdir=harvester_workdir,
-                                          remote_workdir=self._remote_workdir,
+                                          remote_workdir=remote_workdir,
                                           pilot_config=os.path.join(self._mountpath, 'default.cfg'),
                                           userid=userid,
                                           namespace=namespace,
@@ -482,8 +454,8 @@ class DaskSubmitter(PluginBase):
                     err_str = f'failed with exit code={exitcode}, diagnostics={diagnostics}'
                     tmp_log.warning(err_str)
 
-                    tmp_log.warning(f'deleting remote workdir: {self._remote_workdir}')
-                    submitter.deploy_cleanup(self._remote_workdir)
+                    tmp_log.warning(f'deleting remote workdir: {remote_workdir}')
+                    submitter.deploy_cleanup(remote_workdir)
 
                     work_spec.set_status(WorkSpec.ST_failed)
                     job_spec.status = 'failed'
@@ -500,7 +472,8 @@ class DaskSubmitter(PluginBase):
                     # i.e. now it's time to place the job definition in the shared area, /mnt/dask/[job id]
                     # create the job definition both locally and remotely
                     session_ip = service_info['jupyterlab'].get('external_ip') if 'jupyterlab' in service_info else None
-                    exit_code, diagnostics = self.place_job_def(job_spec=job_spec,
+                    exit_code, diagnostics = self.place_job_def(local_workdir,
+                                                                job_spec=job_spec,
                                                                 scheduler_ip=service_info['dask-scheduler'].get('internal_ip'),
                                                                 session_ip=session_ip)
                     if exit_code:
