@@ -200,14 +200,15 @@ class DaskMonitor(PluginBase):
             # wait for the worker pods to start
             try:
                 status, pods = dask_utils.await_worker_deployment(_namespace,
-                                                                      scheduler_pod_name=_scheduler_pod_name,
-                                                                      jupyter_pod_name=_session_pod_name)
+                                                                  scheduler_pod_name=_scheduler_pod_name,
+                                                                  jupyter_pod_name=_session_pod_name)
             except Exception as exc:
                 err_str = f'caught exception: {exc}'
                 tmp_log.warning(err_str)
                 pods = None
                 status = WorkSpec.ST_failed
             else:
+                tmp_log.debug(f'checking status for pods={pods}')
                 # set workspec.maxWalltime when dask worker pods are running
                 # sweeper should kill everything when maxWalltime has been passed
                 if status:
@@ -242,7 +243,7 @@ class DaskMonitor(PluginBase):
             if _status:  # ie an exit code int was correctly received
 
                 # backup pilot log
-                path = os.path.join(self._pilot_archive, f'{_taskid-pilotlog.txt}')
+                path = os.path.join(self._pilot_archive, f'{_taskid}-pilotlog.txt')
                 cmd = f'kubectl logs pilot -n {namespace} >{path}'
                 dask_utils.execute(cmd)
 
