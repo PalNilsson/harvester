@@ -22,6 +22,7 @@ class DaskMonitor(PluginBase):
 
     _tmpdir = os.environ.get('DASK_TMPDIR', '/tmp/panda')
     _harvester_workdir = os.environ.get('HARVESTER_WORKDIR', '/data/atlpan/harvester/workdir')
+    _pilot_archive = os.environ.get('HARVESTER_PILOT_ARCHIVE', '/data/atlpan/harvester/archive')
 
     # constructor
     def __init__(self, **kwarg):
@@ -239,6 +240,12 @@ class DaskMonitor(PluginBase):
             pods_sup_diag_list.append('pilot')
             _ec, _status = self.get_pilot_exit_code(pod_info, state='terminated')
             if _status:  # ie an exit code int was correctly received
+
+                # backup pilot log
+                path = os.path.join(self._pilot_archive, f'{_taskid-pilotlog.txt}')
+                cmd = f'kubectl logs pilot -n {namespace} >{path}'
+                dask_utils.execute(cmd)
+
                 if _ec:
                     err_str = f'pilot failed with exit code: {_ec}'
                     tmp_log.debug(err_str)
