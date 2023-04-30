@@ -321,7 +321,7 @@ class DaskSubmitterBase(object):
                                          user_id=self._userid,
                                          workflow=self.get_pilot_workflow(),
                                          queue=self._queuename,
-                                         lifetime=60 * 5,
+                                         lifetime=24 * 60 * 60,
                                          cert_dir=self._cert_dir,
                                          proxy=self._remote_proxy,
                                          workdir=self._remote_workdir,
