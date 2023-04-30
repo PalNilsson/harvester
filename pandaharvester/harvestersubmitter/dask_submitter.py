@@ -260,7 +260,8 @@ class DaskSubmitter(PluginBase):
             job_spec_dict[job_spec.PandaID]['session_ip'] = session_ip
 
         # user secrets are not needed by the pilot, so remove them
-        del job_spec_dict[job_spec.PandaID]['secrets']
+        if 'secrets' in job_spec_dict[job_spec.PandaID]:
+            del job_spec_dict[job_spec.PandaID]['secrets']
 
         tmp_log.debug(f'job_spec_dict={job_spec_dict}')
 
