@@ -244,7 +244,7 @@ class DaskMonitor(PluginBase):
 
                 # backup pilot log
                 path = os.path.join(self._pilot_archive, f'{_taskid}-pilotlog.txt')
-                cmd = f'kubectl logs pilot -n {namespace} >{path}'
+                cmd = f'kubectl logs pilot -n {_namespace} >{path}'
                 dask_utils.execute(cmd)
 
                 if _ec:
