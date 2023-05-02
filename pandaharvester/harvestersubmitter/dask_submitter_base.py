@@ -102,9 +102,17 @@ class DaskSubmitterBase(object):
         self._images = {
             'dask-scheduler': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-scheduler:latest',
             'dask-worker': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker:latest',
-            'pilot': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/pilot-image:latest',
+            'pilot': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/pilot-image:latest',  # default
             'jupyterlab': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/datascience-notebook:latest',
             'remote-cleanup': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/remote-cleanup:latest',
+        }
+
+        # the user can select any of these images with prun by using the names below
+        self._pilot_images = {
+            'dask-default': self._images.get('pilot'),
+            'dask-ml': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/pilot-dask-ml:latest',
+            'dask-torch:': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/pilot-dask-torch:latest',
+            'dask-tensorflow:': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/pilot-dask-tensorflow:latest',
         }
 
         self._podnames = {
