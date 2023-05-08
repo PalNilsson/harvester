@@ -343,7 +343,8 @@ class DaskSubmitterBase(object):
         """
 
         tag = self.get_image_tag()
-        image_source = self._images.get(image_name + '-' + tag, 'unknown')
+        tag = '-' + tag if tag else ''
+        image_source = self._images.get(image_name + tag, 'unknown')
         if image_source == 'unknown':
             base_logger.warning(f'found no image that matches tag={tag} for image name={image_name}')
             image_source = self._images.get(image_name, 'unknown')
