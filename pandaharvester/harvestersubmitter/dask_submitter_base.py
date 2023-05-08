@@ -55,7 +55,6 @@ class DaskSubmitterBase(object):
     _files = None
     _images = None
     _userimage = None
-    _imagetag = ''  # empty string = default images will be used, 'ml' -> ml images, etc
     _podnames = None
     _ports = None
     _pandaid = None
@@ -226,17 +225,18 @@ class DaskSubmitterBase(object):
             stderr = 'unknown file name for %s yaml' % name
             base_logger.warning(stderr)
             return stderr
-        image = self._images.get(name, 'unknown')
-        if image == 'unknown':
-            stderr = 'unknown image for %s pod' % name
+
+        image_source = self.get_image_source(self._images.get(name, 'unknown'))
+        if image_source == 'unknown':
+            stderr = f'found no image source for {name}'
             base_logger.warning(stderr)
-            return stderr
+            return False, stderr
 
         # create yaml
         name += '-service'
         func = dask_utils.get_scheduler_yaml if name == 'dask-scheduler-service' else dask_utils.get_jupyterlab_yaml
         path = os.path.join(self._local_workdir, fname)
-        yaml = func(image_source=image,
+        yaml = func(image_source=image_source,
                     nfs_path=self._mountpath,
                     namespace=self._namespace,
                     user_id=self._userid,
@@ -276,12 +276,18 @@ class DaskSubmitterBase(object):
         :return: True if successful, stderr (Boolean, string)
         """
 
+        image_source = self.get_image_source(self._images.get('dask-worker', 'unknown'))
+        if image_source == 'unknown':
+            stderr = f'found no image source for dask-worker for tag={self.get_image_tag()}'
+            base_logger.warning(stderr)
+            return False, stderr
+
         worker_info, stderr = dask_utils.deploy_workers(scheduler_ip,
                                                         self._nworkers,
                                                         self._files,
                                                         self._namespace,
                                                         self._userid,
-                                                        self._images.get('dask-worker', 'unknown'),
+                                                        image_source,
                                                         self._mountpath,
                                                         self._local_workdir,
                                                         self._pandaid,
@@ -324,6 +330,25 @@ class DaskSubmitterBase(object):
 
         return dask_utils.wait_until_deployment(name=self._podnames.get('remote-cleanup', 'unknown'), state='Completed|Terminated', namespace=self._namespace)
 
+    def get_image_source(self, image_name):
+        """
+        Select the image source corresponding to the desired image.
+
+        E.g. image_name = dask-worker, tag=ml, return dask-worker-ml (validated).
+
+        :param image_name: image name (string).
+        :return: image name (string).
+        """
+
+        tag = self.get_image_tag()
+        image_source = self._images.get(image_name + '-' + tag, 'unknown')
+        if image_source == 'unknown':
+            base_logger.warning(f'found no image that matches tag={tag} for image name={image_name}')
+            image_source = self._images.get(image_name, 'unknown')
+
+        base_logger.debug(f'using image source={image_source}')
+        return image_source
+
     def deploy_pilot(self):
         """
         Deploy the pilot pod.
@@ -333,8 +358,14 @@ class DaskSubmitterBase(object):
 
         # create pilot yaml
         path = os.path.join(self._local_workdir, self._files.get('pilot') % self._taskid)
+        image_source = self.get_image_source(self._images.get('pilot', 'unknown'))
+        if image_source == 'unknown':
+            stderr = 'found no image source for pilot'
+            base_logger.warning(stderr)
+            return False, stderr
+
         yaml = dask_utils.get_pilot_yaml(pod_name=self._podnames.get('pilot'),
-                                         image_source=self._images.get('pilot', 'unknown'),
+                                         image_source=image_source,
                                          nfs_path=self._mountpath,
                                          namespace=self._namespace,
                                          user_id=self._userid,
