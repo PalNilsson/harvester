@@ -36,6 +36,7 @@ class DaskSweeper(BaseSweeper):
             #time_now = datetime.datetime.utcnow()
             batch_id = work_spec.batchID
             worker_id = str(work_spec.workerID)
+            tmp_log.info(f'processing workerID={worker_id}, batchID={batch_id}')
             if batch_id:  # sometimes there are missed workers that were not submitted
 
                 # delete the job
@@ -66,11 +67,14 @@ class DaskSweeper(BaseSweeper):
                 tmp_log.debug(f'failed to execute {path}: {stdout}\n{stderr}')
             else:
                 tmp_log.debug(f'executed {path}')
+        else:
+            tmp_log.info(f'path={path} no longer exists (nothing to cleanup)')
 
     def sweep_worker(self, work_spec):
         # cleanup for a worker
         tmp_log = self.make_logger(base_logger, 'workerID={0}'.format(work_spec.workerID), method_name='sweep_worker')
 
+        tmp_log.debug('sweep_worker() called')
         # retrieve and upload the logs to panda cache
         # batch_id = work_spec.batchID
         # log_content = self.k8s_client.retrieve_pod_log(batch_id)
