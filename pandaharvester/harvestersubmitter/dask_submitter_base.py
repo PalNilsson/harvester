@@ -54,6 +54,8 @@ class DaskSubmitterBase(object):
     _nfs_server = None
     _files = None
     _images = None
+    _userimage = None
+    _imagetag = ''  # empty string = default images will be used, 'ml' -> ml images, etc
     _podnames = None
     _ports = None
     _pandaid = None
@@ -84,6 +86,7 @@ class DaskSubmitterBase(object):
         self._taskid = kwargs.get('taskid')
         self._workspec = kwargs.get('workspec')
         self._queuename = kwargs.get('queuename')
+        self._userimage = kwargs.get('userimage')
         self._remote_proxy = kwargs.get('remote_proxy')
 
         self._files = {  # taskid will be added (amd dask worker id in the case of 'dask-worker')
@@ -101,9 +104,12 @@ class DaskSubmitterBase(object):
 
         # base images (the actual image name, e.g. dask-scheduler:latest, can get swapped later to e.g. dask-scheduler-ml:latest)
         self._images = {
-            'dask-scheduler': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-scheduler:latest',
-            'dask-worker': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker:latest',
+            'dask-scheduler': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-scheduler:latest',  # default
+            'dask-scheduler-ml': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-scheduler-ml:latest',
+            'dask-worker': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker:latest',  # default
+            'dask-worker-ml': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker-ml:latest',
             'pilot': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/pilot:latest',  # default
+            'pilot-ml': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/pilot-ml:latest',
             'jupyterlab': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/datascience-notebook:latest',
             'remote-cleanup': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/remote-cleanup:latest',
         }
@@ -121,6 +127,18 @@ class DaskSubmitterBase(object):
         # { name: [port, targetPort], .. }
         self._ports = {'dask-scheduler-service': [80, 8786],
                        'jupyterlab-service': [80, 8888]}
+
+    def get_image_tag(self):
+        """
+        Extract the image tag from the user image name.
+        E.g. userimage = 'pilot-ml', extract 'ml'
+        """
+
+        if '-' in self._userimage:
+            tag = self._userimage[self._userimage.find('-') + 1:]
+        else:
+            tag = ''  # default images will be used
+        return tag
 
     def get_ports(self, servicename):
         """

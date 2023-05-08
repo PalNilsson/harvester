@@ -418,7 +418,7 @@ class DaskSubmitter(PluginBase):
             secrets = self.get_secrets(job_spec)
 
             # hardcoded mode for now
-            mode = 'non_interactive'
+            mode = 'interactive' if 'interactive' in job_spec.realDatasets else 'non_interactive'
             workers = 4
 
             # protection against too many workers
@@ -447,6 +447,7 @@ class DaskSubmitter(PluginBase):
                                           taskid=job_spec.taskID,
                                           workspec=work_spec,
                                           queuename=self.queueName,
+                                          userimage=user_image,
                                           remote_proxy=self._remote_proxy)
             if submitter:
                 info = 'not set yet'
@@ -552,8 +553,6 @@ class DaskSubmitter(PluginBase):
         :param job_spec: job spec dictionary.
         :return: user image name (string).
         """
-
-        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='get_user_image')
 
         job_spec_dict = dask_utils.to_dict(job_spec)
         job = job_spec_dict.get(job_spec.PandaID)
