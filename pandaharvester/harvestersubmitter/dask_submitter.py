@@ -343,8 +343,12 @@ class DaskSubmitter(PluginBase):
         """
 
         job_spec_dict = dask_utils.to_dict(job_spec)
+        base_logger.debug(f'job_spec_dict={job_spec_dict}')
         real_datasets = job_spec_dict.get('realDatasets')
+        base_logger.debug(f'real_datasets={real_datasets}')
         mode = ''
+        if not real_datasets:
+            return 'non_interactive'
         if 'interactive' not in real_datasets:
             mode = 'non_interactive'  # ie nothing specified, use non-interactide move
         else:
