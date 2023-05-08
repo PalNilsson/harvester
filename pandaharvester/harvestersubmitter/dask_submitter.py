@@ -343,9 +343,9 @@ class DaskSubmitter(PluginBase):
         """
 
         job_spec_dict = dask_utils.to_dict(job_spec)
-        base_logger.debug(f'job_spec_dict={job_spec_dict}')
-        real_datasets = job_spec_dict.get('realDatasets')
-        base_logger.debug(f'real_datasets={real_datasets}')
+        job = job_spec_dict.get(job_spec.PandaID)
+        real_datasets = job.get('realDatasets')
+
         mode = ''
         if not real_datasets:
             return 'non_interactive'
