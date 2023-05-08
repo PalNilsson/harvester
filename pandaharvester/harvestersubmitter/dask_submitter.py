@@ -334,6 +334,29 @@ class DaskSubmitter(PluginBase):
 
         return nspaces
 
+    def get_user_mode(self, job_spec):
+        """
+        Return the desired user mode ('interactive' or 'non_interactive').
+
+        :param job_spec: job spec object.
+        :return: user mode (string).
+        """
+
+        job_spec_dict = dask_utils.to_dict(job_spec)
+        real_datasets = job_spec_dict.get('realDatasets')
+        mode = ''
+        if 'interactive' not in real_datasets:
+            mode = 'non_interactive'  # ie nothing specified, use non-interactide move
+        else:
+            if ('non_interactive' in real_datasets or 'non-interactive' in real_datasets):
+                mode = 'non_interactive'
+            else:
+                if 'interactive' in real_datasets:
+                    mode = 'interactive'
+            if not mode:
+                mode = 'non_interactive'
+        return mode
+
     def submit_harvester_worker(self, work_spec):
         """
         Submit the harvester worker.
@@ -417,8 +440,10 @@ class DaskSubmitter(PluginBase):
             tmp_log.debug(f'using namespace={work_spec.namespace}')
             secrets = self.get_secrets(job_spec)
 
-            # hardcoded mode for now
-            mode = 'interactive' if 'interactive' in job_spec.realDatasets else 'non_interactive'
+            # get the user mode; interactive or non-interactive
+            mode = self.get_user_mode(job_spec)
+
+            # hardcoded workers for now
             workers = 4
 
             # protection against too many workers
