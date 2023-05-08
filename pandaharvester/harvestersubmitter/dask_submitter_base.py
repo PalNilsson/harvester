@@ -133,7 +133,9 @@ class DaskSubmitterBase(object):
         E.g. userimage = 'pilot-ml', extract 'ml'
         """
 
-        if '-' in self._userimage:
+        if not self._userimage:
+            tag = ''
+        elif '-' in self._userimage:
             tag = self._userimage[self._userimage.find('-') + 1:]
         else:
             tag = ''  # default images will be used
