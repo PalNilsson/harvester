@@ -228,7 +228,7 @@ class DaskSubmitterBase(object):
             base_logger.warning(stderr)
             return stderr
 
-        image_source = self.get_image_source(self._images.get(name, 'unknown'))
+        image_source = self.get_image_source(name)
         if image_source == 'unknown':
             stderr = f'found no image source for {name}'
             base_logger.warning(stderr)
@@ -278,7 +278,7 @@ class DaskSubmitterBase(object):
         :return: True if successful, stderr (Boolean, string)
         """
 
-        image_source = self.get_image_source(self._images.get('dask-worker', 'unknown'))
+        image_source = self.get_image_source('dask-worker')
         if image_source == 'unknown':
             stderr = f'found no image source for dask-worker for tag={self.get_image_tag()}'
             base_logger.warning(stderr)
@@ -342,6 +342,7 @@ class DaskSubmitterBase(object):
         :return: image name (string).
         """
 
+        # add tag if set (ie if user has specified image, find the matching image)
         tag = self.get_image_tag()
         tag = '-' + tag if tag else ''
         image_source = self._images.get(image_name + tag, 'unknown')
@@ -361,7 +362,7 @@ class DaskSubmitterBase(object):
 
         # create pilot yaml
         path = os.path.join(self._local_workdir, self._files.get('pilot') % self._taskid)
-        image_source = self.get_image_source(self._images.get('pilot', 'unknown'))
+        image_source = self.get_image_source('pilot')
         if image_source == 'unknown':
             stderr = 'found no image source for pilot'
             base_logger.warning(stderr)
