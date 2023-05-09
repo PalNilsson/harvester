@@ -88,6 +88,7 @@ class DaskSubmitterBase(object):
         self._userimage = kwargs.get('userimage')
         self._remote_proxy = kwargs.get('remote_proxy')
 
+        # names of files created by the module
         self._files = {  # taskid will be added (amd dask worker id in the case of 'dask-worker')
             'dask-scheduler-service': '%d-dask-scheduler-service.yaml',
             'dask-scheduler': '%d-dask-scheduler-deployment.yaml',
@@ -113,6 +114,7 @@ class DaskSubmitterBase(object):
             'remote-cleanup': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/remote-cleanup:latest',
         }
 
+        # pod names conversion dictionary
         self._podnames = {
             'dask-scheduler-service': 'dask-scheduler',
             'dask-scheduler': 'dask-scheduler',
