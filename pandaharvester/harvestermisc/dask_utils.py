@@ -279,6 +279,7 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
     ip_pattern = r'[0-9]+(?:\.[0-9]+){3}'  # e.g. 1.2.3.4
     port_pattern = r'([0-9]+)\:.'  # e.g. 80:30525/TCP
     dictionary = {}
+    did_timeout = False
     while processing and (now - starttime < timeout):
 
         resource = 'services' if service else name
@@ -316,15 +317,26 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
                 base_logger.debug(f'dictionary=\n{_dic}')
                 base_logger.info(f'sleeping until {name} is running (check interval={_sleep}s, timeout={timeout}s)')
                 first = False
+
         time.sleep(_sleep)
         now = time.time()
+
+        # will it timeout?
+        if (now - starttime >= timeout):
+            base_logger.warning(f'{name} will time-out')
+            did_timeout = True
 
     if state:
         status = True if (_state and _state in state) else False
     if not status:
-        stderr = f'name={name} not running?'
+        stderr = f'name={name} not running'
+        if did_timeout:
+            stderr += " (installing pod timed out)"
         if dictionary:
-            stderr += f' dictionary={dictionary}'
+            _dic = dictionary.get(name)
+            _state = _dic.get('STATUS')
+            stderr += f' status={_state}'
+            #stderr += f' dictionary={dictionary}'
     if dictionary and status:
         base_logger.debug(f'last dictionary={dictionary}')
 
