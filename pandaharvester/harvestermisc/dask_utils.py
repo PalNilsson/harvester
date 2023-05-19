@@ -266,6 +266,7 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
         return None, None, 'unset pod/service'
 
     base_logger.debug(f'name={name},state={state},deployment={deployment},service={service}')
+    status = False
     _external_ip = None
     stderr = ''
     starttime = time.time()
@@ -1025,6 +1026,8 @@ def get_jupyterlab_info(timeout=300, namespace=None):
     _, _, stderr = wait_until_deployment(name=podname, state='Running', timeout=300, namespace=namespace, deployment=False)
     if stderr:
         return '', podname, stderr
+    else:
+        base_logger.debug('wait_until_deployment() did not return any stderr')
 
     starttime = time.time()
     now = starttime
