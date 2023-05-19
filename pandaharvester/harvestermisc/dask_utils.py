@@ -727,7 +727,7 @@ spec:
             - /bin/bash
             - -c
             - |
-              jupyter lab --LabApp.token='CHANGE_PASSWORD' --LabApp.ip='0.0.0.0' --LabApp.allow_root=True
+              jupyter lab --ServerApp.token='CHANGE_PASSWORD' --ServerApp.ip='0.0.0.0' --ServerApp.allow_root=True
           volumeMounts:
             - name: fileserver-CHANGE_USERID
               mountPath: CHANGE_NFS_PATH
@@ -737,6 +737,7 @@ spec:
         persistentVolumeClaim:
           claimName: fileserver-claim
 """
+#               jupyter lab --LabApp.token='CHANGE_PASSWORD' --LabApp.ip='0.0.0.0' --LabApp.allow_root=True
     yaml = yaml.replace('CHANGE_IMAGE_SOURCE', image_source)
     yaml = yaml.replace('CHANGE_NFS_PATH', nfs_path)
     yaml = yaml.replace('CHANGE_NAMESPACE', namespace)
