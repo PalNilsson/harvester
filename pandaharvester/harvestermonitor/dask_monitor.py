@@ -1,6 +1,5 @@
 import datetime
 import os.path
-import time
 from json import loads
 
 from concurrent.futures import ThreadPoolExecutor
@@ -16,6 +15,7 @@ from pandaharvester.harvestermisc import dask_utils
 base_logger = core_utils.setup_logger('dask_monitor')
 
 BAD_CONTAINER_STATES = ['CreateContainerError', 'CrashLoopBackOff', "FailedMount"]
+
 
 # monitor for dask
 class DaskMonitor(PluginBase):
@@ -108,7 +108,7 @@ class DaskMonitor(PluginBase):
 
         return exit_code, status
 
-    def check_pods_status(self, pods_status_list, containers_state_list):
+    def check_pods_status(self, pods_status_list, containers_state_list):  # noqa: C901
         sub_msg = ''
 
         if 'Unknown' in pods_status_list:
@@ -161,7 +161,7 @@ class DaskMonitor(PluginBase):
 
         return new_status, sub_msg
 
-    def check_a_worker(self, workspec):
+    def check_a_worker(self, workspec):  # noqa: C901
         # set logger
         tmp_log = self.make_logger(base_logger, 'queueName={0} workerID={1} batchID={2}'.
                                    format(self.queueName, workspec.workerID, workspec.batchID),
@@ -169,12 +169,12 @@ class DaskMonitor(PluginBase):
 
         # initialization
         status = None
-        job_id = workspec.batchID
+        # job_id = workspec.batchID
         err_str = ''
         pods_sup_diag_list = []
         time_now = datetime.datetime.utcnow()
-        pods_status_list = []
-        pods_name_to_delete_list = []
+        # pods_status_list = []
+        # pods_name_to_delete_list = []
         tmp_log.debug('called check_a_worker()')
         # extract the namespace, scheduler and session pod names from the encoded workspec.namespace
         if workspec.namespace:
@@ -232,7 +232,7 @@ class DaskMonitor(PluginBase):
                         tmp_log.debug(f'set podStartTime to {workspec.podStartTime} and maxWalltime to {workspec.maxWalltime}')
                         status = WorkSpec.ST_running
                 else:
-                    tmp_log.debug(f'worker(s) failed')
+                    tmp_log.debug('worker(s) failed')
                     status = WorkSpec.ST_failed
         else:
             tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')

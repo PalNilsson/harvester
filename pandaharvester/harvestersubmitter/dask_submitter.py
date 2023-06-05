@@ -22,7 +22,7 @@ from pandaharvester.harvestercore import core_utils
 from pandaharvester.harvestercore.plugin_base import PluginBase
 from pandaharvester.harvesterconfig import harvester_config
 from pandaharvester.harvestermisc.info_utils import PandaQueuesDict
-from pandaharvester.harvestercore.queue_config_mapper import QueueConfigMapper
+#from pandaharvester.harvestercore.queue_config_mapper import QueueConfigMapper
 from pandaharvester.harvestermisc import dask_utils
 from pandaharvester.harvestersubmitter.dask_submitter_base import DaskSubmitterBase
 from pandaharvester.harvestercore.work_spec import WorkSpec
@@ -59,6 +59,9 @@ MAX_WORKERS = 3
 DEFAULT_WORKERS = 3
 MODES = ['interactive', 'non_interactive']
 DEFAULT_MODE = 'non_interactive'
+
+# other
+JOBDEF = 'pandaJobData.out'
 
 
 # submitter for Dask
@@ -263,7 +266,7 @@ class DaskSubmitter(PluginBase):
         tmp_log.debug(f'job_spec_dict={job_spec_dict}')
 
         # place the job def in the local workdir and move it recursively to the remote shared file system
-        filepath = os.path.join(local_workdir, f'pandaJobData.out')
+        filepath = os.path.join(local_workdir, JOBDEF)
         try:
             # create job def in local dir - to be moved to remove location
             with open(filepath, 'w') as _file:
@@ -383,8 +386,8 @@ class DaskSubmitter(PluginBase):
             tmp_log.debug(f'workspec.status={work_spec.status}')
 
         # get info from harvester queue config
-        _queueConfigMapper = QueueConfigMapper()
-        harvester_queue_config = _queueConfigMapper.get_queue(self.queueName)
+        #_queueConfigMapper = QueueConfigMapper()
+        #harvester_queue_config = _queueConfigMapper.get_queue(self.queueName)
 
         # set the stdout log file
         log_file_name = f'{harvester_config.master.harvester_id}_{work_spec.workerID}.out'
@@ -419,10 +422,10 @@ class DaskSubmitter(PluginBase):
 
             # decide container image. In pull mode, defaults are provided
             # container_image: "atlasadc/atlas-grid-centos7"
-            container_image = self.decide_container_image(job_fields, job_pars_parsed)
+            # container_image = self.decide_container_image(job_fields, job_pars_parsed)
 
             # choose the appropriate proxy
-            this_panda_queue_dict = self.panda_queues_dict.get(self.queueName, dict())
+            #this_panda_queue_dict = self.panda_queues_dict.get(self.queueName, dict())
             is_grandly_unified_queue = self.panda_queues_dict.is_grandly_unified_queue(self.queueName)
             cert = self._choose_proxy(work_spec, is_grandly_unified_queue)
             if not cert:

@@ -4,13 +4,11 @@
 # http://www.apache.org/licenses/LICENSE-2.0
 #
 # Authors:
-# - Paul Nilsson, paul.nilsson@cern.ch, 2023
+# - Paul Nilsson, paul.nilsson@cern.ch, 2022-2023
 
-#import logging
 import os
 import re
 import subprocess
-#import sys
 import time
 from shutil import rmtree
 from json import dump as dumpjson
@@ -20,6 +18,7 @@ from pandaharvester.harvestercore import core_utils
 base_logger = core_utils.setup_logger('dask_utils')
 pilotpoduserid = '1006'
 pilotpodgroupid = '1007'
+
 
 def create_namespace(_namespace, filename):
     """
@@ -243,7 +242,7 @@ def get_pod_name(namespace=None, pattern=r'(dask\-scheduler\-.+)'):
     return podname
 
 
-def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, deployment=False, service=False):
+def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, deployment=False, service=False):  # noqa: C901
     """
     Wait until a given pod or service is in running state.
     In case the service has an external IP, return it.
@@ -361,7 +360,7 @@ def _convert_to_dict(stdout):
 
     def remove_parentheses(_line):
         # find all parentheses
-        items = re.findall('\(.*?\)', _line)
+        items = re.findall(r'\(.*?\)', _line)
         if items:
             for item in items:
                 _line = _line.replace(item, '')
@@ -880,7 +879,8 @@ spec:
     return yaml
 
 
-def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, namespace=None, user_id=None, workflow=None, queue=None, lifetime=None, cert_dir=None, proxy=None, workdir=None, config=None):
+def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, namespace=None, user_id=None,
+                   workflow=None, queue=None, lifetime=None, cert_dir=None, proxy=None, workdir=None, config=None):
     """
     Return the yaml for the pilot.
 
@@ -1113,7 +1113,7 @@ def deploy_workers(scheduler_ip, _nworkers, yaml_files, namespace, user_id, imag
     return worker_info, ''
 
 
-def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='', timeout=300):
+def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='', timeout=300):  # noqa: C901
     """
     Wait for all workers to start running.
 
@@ -1176,7 +1176,7 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
             try:
                 state = dictionary[worker_name]['STATUS']
             except KeyError as exc:
-                stderr = 'caught exception: {exc}'
+                stderr = f'caught exception: {exc}'
                 base_logger.warning(stderr)
             else:
                 if state in terminal_states:

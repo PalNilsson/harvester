@@ -4,19 +4,10 @@
 # http://www.apache.org/licenses/LICENSE-2.0
 #
 # Authors:
-# - Paul Nilsson, paul.nilsson@cern.ch, 2022
+# - Paul Nilsson, paul.nilsson@cern.ch, 2022-2023
 
 import os
-import json
-import argparse
-import traceback
-from urllib.parse import unquote
-from concurrent.futures import ThreadPoolExecutor
-
-import random
-#import sys
 import time
-from string import ascii_lowercase
 
 from pandaharvester.harvestercore import core_utils
 from pandaharvester.harvestermisc import dask_utils
@@ -35,6 +26,7 @@ ERROR_DASKWORKER = 7
 ERROR_MKDIR = 8
 ERROR_WRITEFILE = 9
 ERROR_PILOT = 10
+
 
 # submitter for Dask - one instance per panda job
 class DaskSubmitterBase(object):
@@ -110,7 +102,6 @@ class DaskSubmitterBase(object):
             'dask-worker-ml': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker-ml:latest',
             'pilot': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-pilot:latest',  # default
             'pilot-ml': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-pilot-ml:latest',
-#            'jupyterlab': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/datascience-notebook:latest',
             'jupyterlab': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/jupyter-pyroot:x86_64',
             'remote-cleanup': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/remote-cleanup:latest',
         }
@@ -448,9 +439,9 @@ class DaskSubmitterBase(object):
 
         path = os.path.join(self._local_workdir, self._files.get(servicename) % self._taskid)
         yaml = dask_utils.get_service_yaml(namespace=self._namespace,
-                                          name=self._podnames.get(servicename, 'unknown'),
-                                          port=port,
-                                          targetport=targetport)
+                                           name=self._podnames.get(servicename, 'unknown'),
+                                           port=port,
+                                           targetport=targetport)
         status = dask_utils.write_file(path, yaml, mute=False)
         if not status:
             _stderr = 'cannot continue since %s service yaml file could not be created' % servicename
@@ -461,9 +452,6 @@ class DaskSubmitterBase(object):
         status, _, _stderr = dask_utils.kubectl_create(filename=path)
         if not status:
             base_logger.warning('failed to create %s pod: %s', self._podnames.get(servicename, 'unknown'), _stderr)
-            return _stderr
-
-        #        status, _external_ip, _stderr = dask_utils.wait_until_deployment(name=self._podnames.get('dask-scheduler-service','unknown'), namespace=self._namespace)
 
         return _stderr
 
@@ -476,10 +464,10 @@ class DaskSubmitterBase(object):
         """
 
         _, _ip, _stderr = dask_utils.wait_until_deployment(name=self._podnames.get(name, 'unknown'),
-                                                          namespace=self._namespace, service=True)
+                                                           namespace=self._namespace, service=True)
         return _ip, _stderr
 
-    def install(self, timing):
+    def install(self, timing):  # noqa: C901
         """
         Install all services and deploy all pods.
 
@@ -590,12 +578,6 @@ class DaskSubmitterBase(object):
         if exitcode:
             return exitcode, {}, stderr
 
-        # switch context for the new namespace
-        # status = dask_utils.kubectl_execute(cmd='config use-context', namespace=namespace)
-
-        # switch context for the new namespace
-        # status = dask_utils.kubectl_execute(cmd='config use-context', namespace='default')
-
         # store the scheduler pod names, so the monitor can start checking the pod statuses
         session_pod_name = service_info['jupyterlab'].get('pod_name') if self._mode == 'interactive' else 'not_used'
         self._workspec.namespace = f"namespace={self._namespace}:" \
@@ -619,7 +601,6 @@ class DaskSubmitterBase(object):
             base_logger.warning(stderr)
             self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
             exitcode = ERROR_DASKWORKER
-
         timing['tdaskworkers'] = time.time()
         if exitcode:
             return exitcode, {}, stderr
@@ -628,28 +609,12 @@ class DaskSubmitterBase(object):
         # return the jupyterlab and dask scheduler IPs to the user in interactive mode
         return exitcode, service_info, stderr
 
-        #######################################
-
-        # time.sleep(30)
-        #cmd = f'kubectl logs pilot-image --namespace=single-user-{self._userid}'
-        #base_logger.debug(f'executing: {cmd}')
-        #ec, stdout, stderr = dask_utils.execute(cmd)
-        #base_logger.debug(stdout)
-
-        #if not status:
-        #    self.cleanup(namespace=self._namespace, user_id=self._userid, pvc=True, pv=True)
-        #    exit(-1)
-        #base_logger.info('deployed pilot pod')
-
-        return exitcode, stderr
-
     def timing_report(self, timing, info=None):
         """
         Display the timing report.
 
         :param timing: timing dictionary.
         :param info: info string to be prepended to timing report (string).
-        :return:
         """
 
         _info = info if info else ''
@@ -741,7 +706,7 @@ class DaskSubmitterBase(object):
 
         # cleanup tmp files
         for filename in self._files:
-            if not 'dask-worker-deployment' in self._files.get(filename):
+            if 'dask-worker-deployment' not in self._files.get(filename):
                 path = os.path.join(self._local_workdir, self._files.get(filename) % self._taskid)
                 if os.path.exists(path):
                     base_logger.debug(f'could have removed {path}')
