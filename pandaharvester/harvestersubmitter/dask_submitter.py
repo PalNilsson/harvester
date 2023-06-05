@@ -4,10 +4,9 @@
 # http://www.apache.org/licenses/LICENSE-2.0
 #
 # Authors:
-# - Paul Nilsson, paul.nilsson@cern.ch, 2022
+# - Paul Nilsson, paul.nilsson@cern.ch, 2022-2023
 
 import os
-import re
 import json
 import argparse
 import traceback
@@ -15,18 +14,15 @@ from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor
 
 import random
-#import sys
 import time
 from string import ascii_lowercase
 import yaml
 
 from pandaharvester.harvestercore import core_utils
 from pandaharvester.harvestercore.plugin_base import PluginBase
-#from pandaharvester.harvestermisc.k8s_utils import k8s_Client
 from pandaharvester.harvesterconfig import harvester_config
 from pandaharvester.harvestermisc.info_utils import PandaQueuesDict
 from pandaharvester.harvestercore.queue_config_mapper import QueueConfigMapper
-#from pandaharvester.harvestersubmitter import submitter_common
 from pandaharvester.harvestermisc import dask_utils
 from pandaharvester.harvestersubmitter.dask_submitter_base import DaskSubmitterBase
 from pandaharvester.harvestercore.work_spec import WorkSpec
@@ -63,6 +59,7 @@ MAX_WORKERS = 3
 DEFAULT_WORKERS = 3
 MODES = ['interactive', 'non_interactive']
 DEFAULT_MODE = 'non_interactive'
+
 
 # submitter for Dask
 class DaskSubmitter(PluginBase):
