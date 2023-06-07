@@ -12,6 +12,7 @@ import subprocess
 import time
 from shutil import rmtree
 from json import dump as dumpjson
+from typing import Any
 
 from pandaharvester.harvestercore import core_utils
 
@@ -20,11 +21,11 @@ pilotpoduserid = '1006'
 pilotpodgroupid = '1007'
 
 
-def create_namespace(_namespace, filename):
+def create_namespace(namespace: str, filename: str) -> (bool, str):
     """
     Create a namespace for this dask user.
 
-    :param _namespace: namespace (string).
+    :param namespace: namespace (string).
     :param filename: namespace json file name (string).
     :return: True if successful, stderr (Boolean, string).
     """
@@ -34,31 +35,30 @@ def create_namespace(_namespace, filename):
         "kind": "Namespace",
         "metadata":
             {
-                "name": _namespace, "labels":
+                "name": namespace, "labels":
                 {
-                    "name": _namespace
+                    "name": namespace
                 }
             }
     }
 
     status = write_json(filename, namespace_dictionary)
     if not status:
-        return False
-
-    status, _, stderr = kubectl_apply(filename=filename)
-
+        stderr = f'failed to create {filename}'
+    else:
+        status, _, stderr = kubectl_apply(filename=filename)
     return status, stderr
 
 
-def execute(executable, **kwargs):
+def execute(executable: Any, **kwargs: dict):
     """
     Execute the command and its options in the provided executable list.
     The function also determines whether the command should be executed within a container.
     TODO: add time-out functionality.
 
-    :param executable: command to be executed (string or list).
-    :param kwargs (timeout, usecontainer, returnproc):
-    :return: exit code (int), stdout (string) and stderr (string) (or process if requested via returnproc argument)
+    :param executable: command to be executed (string or list)
+    :param kwargs: (timeout, usecontainer, returnproc) (dict)
+    :return: exit code (int), stdout (string) and stderr (string) (or process if requested via returnproc argument).
     """
 
     cwd = kwargs.get('cwd', os.getcwd())
@@ -168,24 +168,24 @@ def kubectl_execute(cmd=None, filename=None, pod=None, namespace=None):
         base_logger.warning(stderr)
         return None, '', stderr
     if cmd not in ['create', 'delete', 'logs', 'get pods', 'config use-context', 'apply']:
-        stderr = 'unknown kubectl command: %s', cmd
+        stderr = f'unknown kubectl command: {cmd}'
         base_logger.warning(stderr)
         return None, '', stderr
 
     if cmd in ['create', 'delete', 'apply']:
-        execmd = 'kubectl %s -f %s' % (cmd, filename)
+        execmd = f'kubectl {cmd} -f {filename}'
     elif cmd == 'config use-context':
-        execmd = 'kubectl %s %s' % (cmd, namespace)
+        execmd = f'kubectl {cmd} {namespace}'
     else:
-        execmd = 'kubectl %s %s' % (cmd, pod) if pod else 'kubectl %s' % cmd
+        execmd = f'kubectl {cmd} {pod}' if pod else f'kubectl {cmd}'
 
     if cmd in ['get pods', 'logs']:
-        execmd += ' --namespace=%s' % namespace
+        execmd += f' --namespace={namespace}'
 
-    base_logger.debug('executing: %s', execmd)
+    base_logger.debug(f'executing: {execmd}')
     exitcode, stdout, stderr = execute(execmd)
     if exitcode and stderr:
-        base_logger.warning('failed:\n%s', stderr)
+        base_logger.warning(f'failed:\n{stderr}')
         status = False
     else:
         base_logger.debug(f'finished executing command: {execmd}')
@@ -213,10 +213,10 @@ def get_pod_name(namespace=None, pattern=r'(dask\-scheduler\-.+)'):
     found = False
     nap = 6  # seconds
     while attempt < max_attempts:
-        cmd = 'kubectl get pods --namespace %s' % namespace
-        exitcode, stdout, stderr = execute(cmd)
+        cmd = f'kubectl get pods --namespace={namespace}'
+        _, stdout, stderr = execute(cmd)
         if stderr:
-            base_logger.warning('failed:\n%s', stderr)
+            base_logger.warning(f'failed:\n{stderr}')
             attempt += 1
             if attempt < max_attempts:
                 base_logger(f'taking a {nap}s nap (attempt #{attempt}/{max_attempts})')
@@ -283,11 +283,11 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
     while processing and (now - starttime < timeout):
 
         resource = 'services' if service else name
-        cmd = "kubectl get %s %s --namespace=%s" % (podtype, resource, namespace)
-        base_logger.debug('executing cmd=\'%s\'', cmd)
-        exitcode, stdout, stderr = execute(cmd)
+        cmd = f"kubectl get {podtype} {resource} --namespace={namespace}"
+        base_logger.debug('executing cmd=\'{cmd}\'')
+        _, stdout, stderr = execute(cmd)
         if stderr and stderr.lower().startswith('error'):
-            base_logger.warning('failed:\n%s', stderr)
+            base_logger.warning(f'failed:\n{stderr}')
             break
 
         dictionary = _convert_to_dict(stdout)
@@ -310,7 +310,7 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
                 _port = _dic.get('PORT')
                 port_number = re.findall(port_pattern, _port)
                 if port_number and _external_ip:
-                    _external_ip += ':%s' % port_number[0]
+                    _external_ip += f':{port_number[0]}'
                     processing = False
                     break
             if first:
@@ -378,15 +378,15 @@ def _convert_to_dict(stdout):
             _l = re.sub(' +', ' ', line)
             _l = [_f for _f in _l.split(' ') if _f]
             # NAME READY STATUS RESTARTS AGE
-            if first_line == []:
+            if not first_line:
                 first_line = _l[1:]
             else:
                 dictionary[_l[0]] = {}
                 for i in range(len(_l[1:])):
                     dictionary[_l[0]][first_line[i]] = _l[1:][i]
 
-        except Exception:
-            base_logger.warning("unexpected format of utility output: %s", line)
+        except IndexError as exc:
+            base_logger.warning(f"unexpected format of utility output: {line}, {exc}")
 
     return dictionary
 
@@ -428,7 +428,7 @@ def write_json(filename, data, sort_keys=True, indent=4, separators=(',', ': '))
     status = False
 
     try:
-        with open(filename, 'w') as _fh:
+        with open(filename, 'w', encoding='utf-8') as _fh:
             dumpjson(data, _fh, sort_keys=sort_keys, indent=indent, separators=separators)
     except IOError as exc:
         # raise FileHandlingFailure(exc)
@@ -1149,21 +1149,19 @@ def await_worker_deployment(namespace, scheduler_pod_name='', jupyter_pod_name='
 
         # get list of workers and get rid of the scheduler and workers that are already known to be running
         workers_list = list(dictionary.keys())
-        for pod_name in [scheduler_pod_name, jupyter_pod_name]:
+        for pod_name in (scheduler_pod_name, jupyter_pod_name):
             if pod_name == 'not_used' or not pod_name:
                 continue
             if pod_name in workers_list:
                 workers_list.remove(pod_name)
-            else:
-                if len(workers_list) < 10:
-                    base_logger.debug(f'{pod_name} not in workers list={workers_list}')
+            elif len(workers_list) < 10:
+                base_logger.debug(f'{pod_name} not in workers list={workers_list}')
 
         for running_worker in running_workers:
             if running_worker in workers_list:
                 workers_list.remove(running_worker)
-            else:
-                if len(workers_list) < 10:
-                    base_logger.debug(f'{running_worker} not in workers list={workers_list}')
+            elif len(workers_list) < 10:
+                base_logger.debug(f'{running_worker} not in workers list={workers_list}')
 
         # check the states
         if counter == 0:

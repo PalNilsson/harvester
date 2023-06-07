@@ -1,6 +1,7 @@
 import datetime
 import os.path
 from json import loads
+from typing import Any
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -51,13 +52,16 @@ class DaskMonitor(PluginBase):
 
         self._all_pods_list = []
 
-    def get_pod_info(self, podname, namespace):
+    def get_pod_info(self, podname: str, namespace: str) -> dict:
         """
         Get the pod_info dictionary containing all the known pod information.
+
+        :param podname: pod name (string)
+        :param namespace: name space (string)
+        :return: pod info dictionary.
         """
 
-        tmp_log = self.make_logger(base_logger, 'queueName={0}'.format(self.queueName),
-                                   method_name='get_pod_info')
+        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='get_pod_info')
 
         pod_info = {}
         cmd = f'kubectl get pod {podname} --output=json -n {namespace}'
@@ -74,41 +78,54 @@ class DaskMonitor(PluginBase):
                     for _cs in _dict['status']['containerStatuses']:
                         if _cs['state']:
                             pod_info['containers_state'].append(_cs['state'])
-            except Exception as exc:
+            except IndexError as exc:
                 tmp_log.warning(f'caught exception: {exc}')
         else:
             if 'not found' in stderr:
-                tmp_log.debug(f'pilot pod not found: {stderr}')
-                pass  # ignore since pod has not started yet
+                tmp_log.debug(f'pod {podname} not found: {stderr}')
             else:
                 tmp_log.warning(f'command (cmd) failed: {stderr}')
 
         return pod_info
 
-    def get_pilot_exit_code(self, pod_info, state='unknown'):
+    def get_pilot_exit_code(self, pod_info: dict, state: str = 'unknown') -> (int, bool):
         """
         Get the pilot container exit code.
         Note: a status Boolean is also returned to make sure that the exit code was correctly extracted.
+
+        :param pod_info: pod info (dict)
+        :param state: state (str)
+        :return: exit code (int), state (bool).
         """
+
         # pod_info['containers_state'][0]['terminated']['exitCode']
 
+        tmp_log = self.make_logger(base_logger, method_name='get_pilot_exit_code')
+
         status = False
-        tmp_log = self.make_logger(base_logger, 'queueName={0}'.format(self.queueName),
-                                   method_name='get_pilot_exit_code')
         exit_code = 0
         if state not in pod_info['containers_state'][0]:
             tmp_log.warning(f'state {state} not found in pod_info={pod_info}')
         else:
             try:
                 exit_code = pod_info['containers_state'][0][state]['exitCode']
-            except Exception as exc:
+            except IndexError as exc:
                 tmp_log.warning(f'caught exception: {exc}')
             else:
                 status = True if isinstance(exit_code, int) else False
 
         return exit_code, status
 
-    def check_pods_status(self, pods_status_list, containers_state_list):  # noqa: C901
+    def check_pods_status(self, pods_status_list: list, containers_state_list: list) -> (int, str):  # noqa: C901
+        """
+        Check status of pods.
+
+        :param pods_status_list: status list for pods (list)
+        :param containers_state_list: state list for containers (list)
+        :return: status (int), message (string).
+        """
+
+        # tmp_log = self.make_logger(base_logger, method_name='check_pods_status')
         sub_msg = ''
 
         if 'Unknown' in pods_status_list:
@@ -141,9 +158,9 @@ class DaskMonitor(PluginBase):
                                 state = 'running'
                             elif item.waiting is not None:
                                 state = 'waiting'
-                            msg_str = 'container not terminated yet ({0}) while pod Succeeded'.format(state)
+                            msg_str = f'container not terminated yet ({state}) while pod Succeeded'
                         elif item.terminated.reason != 'Completed':
-                            msg_str = 'container terminated by k8s for reason {0}'.format(item.terminated.reason)
+                            msg_str = f'container terminated by k8s for reason {item.terminated.reason}'
                         sub_mesg_list.append(msg_str)
                     sub_msg = ';'.join(sub_mesg_list)
                     new_status = WorkSpec.ST_cancelled
@@ -161,10 +178,16 @@ class DaskMonitor(PluginBase):
 
         return new_status, sub_msg
 
-    def check_a_worker(self, workspec):  # noqa: C901
+    def check_a_worker(self, workspec: Any) -> (int, str):  # noqa: C901
+        """
+        Check a worker.
+
+        :param workspec: workspec object
+        :return: status (int), error string.
+        """
+
         # set logger
-        tmp_log = self.make_logger(base_logger, 'queueName={0} workerID={1} batchID={2}'.
-                                   format(self.queueName, workspec.workerID, workspec.batchID),
+        tmp_log = self.make_logger(base_logger, f'workerID={workspec.workerID} batchID={workspec.batchID}',
                                    method_name='check_a_worker')
 
         # initialization
@@ -187,7 +210,7 @@ class DaskMonitor(PluginBase):
         if _namespace and _scheduler_pod_name and _session_pod_name and _pilot_pod_name and workspec.status != WorkSpec.ST_running:
             # wait for pilot pod to start
             try:
-                status, _, stderr = dask_utils.wait_until_deployment(name=_pilot_pod_name, state='Running|Error', namespace=_namespace)
+                status, _, _ = dask_utils.wait_until_deployment(name=_pilot_pod_name, state='Running|Error', namespace=_namespace)
             except Exception as exc:
                 err_str = f'caught exception: {exc}'
                 tmp_log.warning(err_str)
@@ -250,13 +273,10 @@ class DaskMonitor(PluginBase):
                 if _ec:
                     err_str = f'pilot failed with exit code: {_ec}'
                     tmp_log.debug(err_str)
+
                     # clean up
-                    try:
-                        dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
-                    except Exception as exc:
-                        tmp_log.debug(f'caught exception: {exc}')
-                    else:
-                        tmp_log.debug(f'removed {os.path.join(self._tmpdir, str(_taskid))}')
+                    dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
+
                     # remove everything
                     self.delete_job(workspec.workerID, _taskid)
                     status = WorkSpec.ST_failed
@@ -286,9 +306,15 @@ class DaskMonitor(PluginBase):
         workspec.set_status(status)
         return status, err_str
 
-    def delete_job(self, worker_id, task_id):
-        #
-        tmp_log = self.make_logger(base_logger, 'workerID={0}'.format(worker_id), method_name='sweep_worker')
+    def delete_job(self, worker_id: int, task_id: int):
+        """
+        Clean up.
+
+        :param worker_id: worker id (int)
+        :param task_id: task id (int).
+        """
+
+        tmp_log = self.make_logger(base_logger, f'workerID={worker_id}', method_name='sweep_worker')
 
         # cleanup namespace
         path = os.path.join(self._harvester_workdir, f'{worker_id}-cleanup.sh')
@@ -303,18 +329,23 @@ class DaskMonitor(PluginBase):
             tmp_log.warning(f'path={path} does not exist (failed to cleanup)')
 
         # clean the harvester workdir for the current job
-        for _id in [task_id, worker_id]:
+        for _id in (task_id, worker_id):
             cmd = f'rm -f {self._harvester_workdir}/{_id}-*'
             tmp_log.debug(f'cleaning up harvester workdir ({cmd})')
             ec, stdout, stderr = dask_utils.execute(cmd)
             if ec:
                 tmp_log.warning(f'failed with ec={ec}, out={stdout+stderr}')
 
-    def check_workers(self, workspec_list):
-        tmp_log = self.make_logger(base_logger, 'queueName={0}'.format(self.queueName), method_name='check_workers')
-        tmp_log.debug('start')
+    def check_workers(self, workspec_list: list) -> (bool, list):
+        """
+        Check workers.
 
-        ret_list = list()
+        :param workspec_list: list of workspecs (list)
+        :return: status (bool), list of workspecs (list).
+        """
+        tmp_log = self.make_logger(base_logger, f'queueName={self.queueName}', method_name='check_workers')
+
+        ret_list = []
         if not workspec_list:
             err_str = 'empty workspec_list'
             tmp_log.debug(err_str)
