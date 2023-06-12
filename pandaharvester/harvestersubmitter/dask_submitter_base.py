@@ -237,7 +237,8 @@ class DaskSubmitterBase(object):
                     namespace=self._namespace,
                     user_id=self._userid,
                     port=self.get_ports(name)[1],
-                    password=self._password)
+                    password=self._password,
+                    workdir=self._remote_workdir)
         status = dask_utils.write_file(path, yaml, mute=False)
         if not status:
             stderr = 'cannot continue since file %s could not be created' % path

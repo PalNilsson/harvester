@@ -600,16 +600,17 @@ spec:
     return yaml
 
 
-def get_scheduler_yaml(image_source=None, nfs_path=None, namespace=None, user_id=None, port=8786, password=None):
+def get_scheduler_yaml(image_source=None, nfs_path=None, namespace=None, user_id=None, port=8786, password=None, workdir=None):
     """
     Return the yaml for the Dask scheduler for a given image and the path to the shared file system.
 
-    :param image_source: image source (string).
-    :param nfs_path: NFS path (string).
-    :param namespace: namespace (string).
-    :param user_id: user id (string).
-    :param port: optional container port (int).
-    :param password: (not used).
+    :param image_source: image source (string)
+    :param nfs_path: NFS path (string)
+    :param namespace: namespace (string)
+    :param user_id: user id (string)
+    :param port: optional container port (int)
+    :param password: (not used)
+    :param workdir: (not used)
     :return: yaml (string).
     """
 
@@ -667,15 +668,16 @@ spec:
     return yaml
 
 
-def get_jupyterlab_yaml(image_source=None, nfs_path=None, namespace=None, user_id=None, port=8888, password=None):
+def get_jupyterlab_yaml(image_source=None, nfs_path=None, namespace=None, user_id=None, port=8888, password=None, workdir=None):
     """
     Return the yaml for jupyterlab for a given image and the path to the shared file system.
 
-    :param image_source: image source (string).
-    :param nfs_path: NFS path (string).
-    :param namespace: namespace (string).
-    :param user_id: user id (string).
-    :param password: jupyterlab login password (string).
+    :param image_source: image source (string)
+    :param nfs_path: NFS path (string)
+    :param namespace: namespace (string)
+    :param user_id: user id (string)
+    :param password: jupyterlab login password (string)
+    :param workdir: active workdir passed to used (string)
     :return: yaml (string).
     """
 
@@ -694,8 +696,18 @@ def get_jupyterlab_yaml(image_source=None, nfs_path=None, namespace=None, user_i
     if not password:
         base_logger.warning('password must be set')
         return ""
+    if not workdir:
+        base_logger.warning('workdir must be set')
+        return ""
 
     yaml = """
+  containers:
+  - name: pilot
+    image: CHANGE_IMAGE_SOURCE
+    env:
+    - name: PILOT_WORKFLOW
+      value: "CHANGE_WORKFLOW"
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -720,6 +732,9 @@ spec:
         - name: jupyterlab
           image: CHANGE_IMAGE_SOURCE
           imagePullPolicy: IfNotPresent
+          env:
+          - name: PANDA_WORKDIR
+            value: "CHANGE_WORKDIR"
           ports:
           - containerPort: CHANGE_PORT
           command:
@@ -743,6 +758,7 @@ spec:
     yaml = yaml.replace('CHANGE_PORT', str(port))
     yaml = yaml.replace('CHANGE_USERID', user_id)
     yaml = yaml.replace('CHANGE_PASSWORD', password)
+    yaml = yaml.replace('CHANGE_WORKDIR', workdir)
 
     return yaml
 
