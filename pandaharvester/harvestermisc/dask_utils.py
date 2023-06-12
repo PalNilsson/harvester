@@ -284,7 +284,7 @@ def wait_until_deployment(name=None, state=None, timeout=300, namespace=None, de
 
         resource = 'services' if service else name
         cmd = f"kubectl get {podtype} {resource} --namespace={namespace}"
-        base_logger.debug('executing cmd=\'{cmd}\'')
+        base_logger.debug(f"executing cmd=\'{cmd}\'")
         _, stdout, stderr = execute(cmd)
         if stderr and stderr.lower().startswith('error'):
             base_logger.warning(f'failed:\n{stderr}')
