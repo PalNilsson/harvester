@@ -701,13 +701,6 @@ def get_jupyterlab_yaml(image_source=None, nfs_path=None, namespace=None, user_i
         return ""
 
     yaml = """
-  containers:
-  - name: pilot
-    image: CHANGE_IMAGE_SOURCE
-    env:
-    - name: PILOT_WORKFLOW
-      value: "CHANGE_WORKFLOW"
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
