@@ -102,7 +102,7 @@ class DaskSubmitterBase(object):
             'dask-worker-ml': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker-ml:latest',
             'pilot': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-pilot:latest',  # default
             'pilot-ml': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-pilot-ml:latest',
-            'jupyterlab': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/jupyter-pyroot:latest',
+            'jupyterlab': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/jupyter-pyroot:test2',
             'remote-cleanup': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/remote-cleanup:latest',
         }
 
