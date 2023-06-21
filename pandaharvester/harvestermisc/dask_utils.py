@@ -734,7 +734,7 @@ spec:
             - /bin/bash
             - -c
             - |
-              start.sh jupyter lab --ServerApp.token='CHANGE_PASSWORD' --ServerApp.ip='0.0.0.0' --ServerApp.allow_root=True
+              start.sh jupyter lab --ServerApp.token='CHANGE_PASSWORD' --ServerApp.ip='0.0.0.0' --ServerApp.allow_root=True --ServerApp.port='8888'
           volumeMounts:
             - name: fileserver-CHANGE_USERID
               mountPath: CHANGE_NFS_PATH
