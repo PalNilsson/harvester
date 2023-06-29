@@ -79,7 +79,7 @@ class DaskSubmitterBase(object):
         self._queuename = kwargs.get('queuename')
         self._userimage = kwargs.get('userimage')
         self._remote_proxy = kwargs.get('remote_proxy')
-        selt._maxtime = kwargs.get('maxtime')
+        self._maxtime = kwargs.get('maxtime')
 
         # names of files created by the module
         self._files = {  # taskid will be added (amd dask worker id in the case of 'dask-worker')
