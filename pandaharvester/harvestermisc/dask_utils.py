@@ -891,7 +891,7 @@ spec:
 
 
 def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, namespace=None, user_id=None,
-                   workflow=None, queue=None, lifetime=None, cert_dir=None, proxy=None, workdir=None, config=None):
+                   workflow=None, queue=None, lifetime=None, leasetime=None, cert_dir=None, proxy=None, workdir=None, config=None):
     """
     Return the yaml for the pilot.
 
@@ -902,6 +902,7 @@ def get_pilot_yaml(pod_name='pilot-image', image_source=None, nfs_path=None, nam
     :param workflow: pilot workflow (stager or generic) (string).
     :param queue: PanDA queue name (string).
     :param lifetime: maximum pilot lifetime (seconds) (int).
+    :param leasetime: maximum leasetime for interactive job - ignored for non-interactive jobs (seconds) (int).
     :param cert_dir: grid certificate directory (string).
     :param proxy: path to grid proxy (string).
     :param workdir: remote work directory (string).
@@ -933,6 +934,8 @@ spec:
       value: "CHANGE_QUEUE"
     - name: PILOT_LIFETIME
       value: "CHANGE_LIFETIME"
+    - name: PILOT_LEASETIME
+      value: "CHANGE_LEASETIME"
     - name: PILOT_WORKDIR
       value: "CHANGE_WORKDIR"
     - name: PILOT_JOB_LABEL
@@ -967,6 +970,7 @@ spec:
     yaml = yaml.replace('CHANGE_WORKFLOW', workflow)
     yaml = yaml.replace('CHANGE_QUEUE', queue)
     yaml = yaml.replace('CHANGE_LIFETIME', str(lifetime))
+    yaml = yaml.replace('CHANGE_LIFETIME', str(leasetime))
     yaml = yaml.replace('CHANGE_WORKDIR', workdir)
     yaml = yaml.replace('CHANGE_CONFIGDIR', config)
     yaml = yaml.replace('CHANGE_CERT', cert_dir)

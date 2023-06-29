@@ -79,6 +79,7 @@ class DaskSubmitterBase(object):
         self._queuename = kwargs.get('queuename')
         self._userimage = kwargs.get('userimage')
         self._remote_proxy = kwargs.get('remote_proxy')
+        selt._maxtime = kwargs.get('maxtime')
 
         # names of files created by the module
         self._files = {  # taskid will be added (amd dask worker id in the case of 'dask-worker')
@@ -371,6 +372,7 @@ class DaskSubmitterBase(object):
                                          workflow=self.get_pilot_workflow(),
                                          queue=self._queuename,
                                          lifetime=24 * 60 * 60,
+                                         leasetime=300,
                                          cert_dir=self._cert_dir,
                                          proxy=self._remote_proxy,
                                          workdir=self._remote_workdir,

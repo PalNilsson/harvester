@@ -477,7 +477,8 @@ class DaskSubmitter(PluginBase):
                                           workspec=work_spec,
                                           queuename=self.queueName,
                                           userimage=user_image,
-                                          remote_proxy=self._remote_proxy)
+                                          remote_proxy=self._remote_proxy,
+                                          maxtime=24 * 60 * 60)
             if submitter:
                 info = 'not set yet'
                 exitcode, service_info, diagnostics = submitter.install(timing)
