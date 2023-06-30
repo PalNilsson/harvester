@@ -971,7 +971,7 @@ spec:
     yaml = yaml.replace('CHANGE_WORKFLOW', workflow)
     yaml = yaml.replace('CHANGE_QUEUE', queue)
     yaml = yaml.replace('CHANGE_LIFETIME', str(lifetime))
-    yaml = yaml.replace('CHANGE_LIFETIME', str(leasetime))
+    yaml = yaml.replace('CHANGE_LEASETIME', str(leasetime))
     yaml = yaml.replace('CHANGE_WORKDIR', workdir)
     yaml = yaml.replace('CHANGE_CONFIGDIR', config)
     yaml = yaml.replace('CHANGE_CERT', cert_dir)
