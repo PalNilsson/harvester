@@ -734,7 +734,7 @@ spec:
             - /bin/bash
             - -c
             - |
-              start.sh jupyter lab --ServerApp.token='CHANGE_PASSWORD' --ServerApp.ip='0.0.0.0' --ServerApp.allow_root=True --ServerApp.port='8888'
+              start.sh jupyter lab --ServerApp.token='CHANGE_PASSWORD' --ServerApp.ip='0.0.0.0' --ServerApp.allow_root=True
           volumeMounts:
             - name: fileserver-CHANGE_USERID
               mountPath: CHANGE_NFS_PATH
@@ -746,11 +746,12 @@ spec:
 """
 #               jupyter lab --ServerApp.token='CHANGE_PASSWORD' --ServerApp.ip='0.0.0.0' --ServerApp.allow_root=True
 #               jupyter lab --LabApp.token='CHANGE_PASSWORD' --LabApp.ip='0.0.0.0' --LabApp.allow_root=True
+# start.sh jupyter lab --ServerApp.token='CHANGE_PASSWORD' --ServerApp.ip='0.0.0.0' --ServerApp.allow_root=True --ServerApp.port='8888'
     yaml = yaml.replace('CHANGE_IMAGE_SOURCE', image_source)
     yaml = yaml.replace('CHANGE_NFS_PATH', nfs_path)
     yaml = yaml.replace('CHANGE_NAMESPACE', namespace)
-    yaml = yaml.replace('CHANGE_PORT', '80')
-#    yaml = yaml.replace('CHANGE_PORT', str(port))
+#    yaml = yaml.replace('CHANGE_PORT', '80')
+    yaml = yaml.replace('CHANGE_PORT', str(port))
     yaml = yaml.replace('CHANGE_USERID', user_id)
     yaml = yaml.replace('CHANGE_PASSWORD', password)
     yaml = yaml.replace('CHANGE_WORKDIR', workdir)
