@@ -734,7 +734,7 @@ spec:
             - /bin/bash
             - -c
             - |
-              start.sh jupyter lab --ServerApp.token='CHANGE_PASSWORD' --ServerApp.ip='0.0.0.0' --ServerApp.allow_root=True
+              jupyter lab --ServerApp.token='CHANGE_PASSWORD' --ServerApp.ip='0.0.0.0' --ServerApp.allow_root=True
           volumeMounts:
             - name: fileserver-CHANGE_USERID
               mountPath: CHANGE_NFS_PATH
@@ -746,6 +746,7 @@ spec:
 """
 #               jupyter lab --ServerApp.token='CHANGE_PASSWORD' --ServerApp.ip='0.0.0.0' --ServerApp.allow_root=True
 #               jupyter lab --LabApp.token='CHANGE_PASSWORD' --LabApp.ip='0.0.0.0' --LabApp.allow_root=True
+#               start.sh jupyter lab --ServerApp.token='CHANGE_PASSWORD' --ServerApp.ip='0.0.0.0' --ServerApp.allow_root=True
 # start.sh jupyter lab --ServerApp.token='CHANGE_PASSWORD' --ServerApp.ip='0.0.0.0' --ServerApp.allow_root=True --ServerApp.port='8888'
     yaml = yaml.replace('CHANGE_IMAGE_SOURCE', image_source)
     yaml = yaml.replace('CHANGE_NFS_PATH', nfs_path)
