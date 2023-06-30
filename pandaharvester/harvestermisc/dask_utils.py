@@ -1332,18 +1332,20 @@ def extract_pod_info(namespace):
     _namespace = ''
     _taskid = ''
     _mode = ''
+    _leasetime = 0
     _scheduler_pod_name = ''
     _session_pod_name = ''
     _pilot_pod_name = ''
-    pattern = r'namespace\=(.+)\:taskid\=(.+)\:mode\=(.+)\:dask\-scheduler\_pod\_name\=(.+)\:session\_pod\_name\=(.+)\:pilot\_pod\_name\=(.+)'
+    pattern = r'namespace\=(.+)\:taskid\=(.+)\:mode\=(.+)\:leasetime\=(.+)\:dask\-scheduler\_pod\_name\=(.+)\:session\_pod\_name\=(.+)\:pilot\_pod\_name\=(.+)'
     try:
         info = re.findall(pattern, namespace)
         _namespace = info[0][0]
         _taskid = info[0][1]
         _mode = info[0][2]
-        _scheduler_pod_name = info[0][3]
-        _session_pod_name = info[0][4]
-        _pilot_pod_name = info[0][5]
+        _leasetime = int(info[0][3])
+        _scheduler_pod_name = info[0][4]
+        _session_pod_name = info[0][5]
+        _pilot_pod_name = info[0][6]
     except Exception as exc:
         base_logger(f'failed to extract pod info from namespace={namespace}: {exc}')
 

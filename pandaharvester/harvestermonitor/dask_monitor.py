@@ -1,5 +1,6 @@
 import datetime
 import os.path
+import time
 from json import loads
 from typing import Any
 
@@ -196,12 +197,13 @@ class DaskMonitor(PluginBase):
         err_str = ''
         pods_sup_diag_list = []
         time_now = datetime.datetime.utcnow()
+        pilot_start = None  # will be set when the pilot pod is running
         # pods_status_list = []
         # pods_name_to_delete_list = []
-        tmp_log.debug('called check_a_worker()')
+
         # extract the namespace, scheduler and session pod names from the encoded workspec.namespace
         if workspec.namespace:
-            _namespace, _taskid, _mode, _scheduler_pod_name, _session_pod_name, _pilot_pod_name = dask_utils.extract_pod_info(workspec.namespace)
+            _namespace, _taskid, _mode, _leasetime, _scheduler_pod_name, _session_pod_name, _pilot_pod_name = dask_utils.extract_pod_info(workspec.namespace)
         else:
             err_str = 'pod info is not known yet'
             tmp_log.debug(err_str)
@@ -220,6 +222,9 @@ class DaskMonitor(PluginBase):
             else:
                 tmp_log.debug(f'pilot pod is running (status={status}, interactive mode={_mode})')
 
+                # start checking lease time once the pilot pod is in running state (cannot know the payload state here)
+                if status and _mode == 'interactive':
+                    pilot_start = int(time.time())
             # wait for the worker pods to start
             try:
                 status, pods = dask_utils.await_worker_deployment(_namespace,
@@ -259,6 +264,7 @@ class DaskMonitor(PluginBase):
                     status = WorkSpec.ST_failed
         else:
             tmp_log.debug(f'will not wait for workers deployment since status={workspec.status}')
+
         pod_info = self.get_pod_info('pilot', _namespace)
         if pod_info:  # did the pilot finish? if so, get the exit code to see if it finished correctly
             pods_sup_diag_list.append('pilot')
@@ -289,6 +295,17 @@ class DaskMonitor(PluginBase):
             else:
                 tmp_log.debug('pilot exit code was not extracted')
 
+        # is the lease time up?
+        if pilot_start and (int(time.time()) - pilot_start > _leasetime):
+            err_str = f'payload is out of time: {int(time.time()) - pilot_start} s have passed since pilot pod started (lease time={_leasetime} s)'
+            tmp_log.debug(err_str)
+            # clean up
+            dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
+            # remove everything
+            self.delete_job(workspec.workerID, _taskid)
+            status = WorkSpec.ST_finished  # set finished so the job is not retried (??)
+
+        # are we out of time?
         if workspec.podStartTime and (time_now - workspec.podStartTime > datetime.timedelta(seconds=self.podQueueTimeLimit)):
             err_str = f'worker is out of time: {time_now - workspec.podStartTime} s have passed since start (t={time_now})'
             tmp_log.debug(err_str)

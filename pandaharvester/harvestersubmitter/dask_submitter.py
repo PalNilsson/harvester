@@ -450,6 +450,9 @@ class DaskSubmitter(PluginBase):
             # hardcoded workers for now
             workers = 4
 
+            # hardcoded lease time for now
+            leasetime = 300
+
             # protection against too many workers
             if workers > MAX_WORKERS:
                 tmp_log.warning(f'reducing number of workers from {workers} to max allowed {MAX_WORKERS}')
@@ -478,7 +481,8 @@ class DaskSubmitter(PluginBase):
                                           queuename=self.queueName,
                                           userimage=user_image,
                                           remote_proxy=self._remote_proxy,
-                                          maxtime=24 * 60 * 60)
+                                          maxtime=24 * 60 * 60,
+                                          leasetime=leasetime)
             if submitter:
                 info = 'not set yet'
                 exitcode, service_info, diagnostics = submitter.install(timing)

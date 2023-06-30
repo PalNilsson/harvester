@@ -53,6 +53,8 @@ class DaskSubmitterBase(object):
     _workspec = None
     _queuename = None
     _remote_proxy = None
+    _maxtime = None
+    _leasetime = None
     _cert_dir = '/mnt/dask/etc/grid-security/certificates'
 
     # constructor
@@ -80,6 +82,7 @@ class DaskSubmitterBase(object):
         self._userimage = kwargs.get('userimage')
         self._remote_proxy = kwargs.get('remote_proxy')
         self._maxtime = kwargs.get('maxtime')
+        self._leasetime = kwargs.get('leasetime')
 
         # names of files created by the module
         self._files = {  # taskid will be added (amd dask worker id in the case of 'dask-worker')
@@ -371,8 +374,8 @@ class DaskSubmitterBase(object):
                                          user_id=self._userid,
                                          workflow=self.get_pilot_workflow(),
                                          queue=self._queuename,
-                                         lifetime=24 * 60 * 60,
-                                         leasetime=300,
+                                         lifetime=self._maxtime,
+                                         leasetime=self._leasetime,
                                          cert_dir=self._cert_dir,
                                          proxy=self._remote_proxy,
                                          workdir=self._remote_workdir,
@@ -586,6 +589,7 @@ class DaskSubmitterBase(object):
         self._workspec.namespace = f"namespace={self._namespace}:" \
                                    f"taskid={self._taskid}:" \
                                    f"mode={self._mode}:" \
+                                   f"leasetime={self._leasetime}:" \
                                    f"dask-scheduler_pod_name={service_info['dask-scheduler'].get('pod_name')}:" \
                                    f"session_pod_name={session_pod_name}:" \
                                    f"pilot_pod_name={self._podnames.get('pilot')}"  # pilot pod not created yet
