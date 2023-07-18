@@ -288,9 +288,10 @@ class DaskMonitor(PluginBase):
                     status = WorkSpec.ST_failed
                 else:
                     tmp_log.debug('pilot pod has finished correctly')
-                    # if non-interactive mode, terminate everything
-                    if _mode == 'non_interactive':
-                        self.delete_job(workspec.workerID, _taskid)
+                    # clean up
+                    dask_utils.remove_local_dir(os.path.join(self._tmpdir, str(_taskid)))
+                    # remove everything
+                    self.delete_job(workspec.workerID, _taskid)
                     status = WorkSpec.ST_finished  # set finished so the job is not retried (??)
             else:
                 tmp_log.debug('pilot exit code was not extracted')
