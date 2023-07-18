@@ -1351,7 +1351,7 @@ def extract_pod_info(namespace):
     except Exception as exc:
         base_logger(f'failed to extract pod info from namespace={namespace}: {exc}')
 
-    return _namespace, _taskid, _mode, _scheduler_pod_name, _session_pod_name, _pilot_pod_name
+    return _namespace, _taskid, _mode, _leasetime, _scheduler_pod_name, _session_pod_name, _pilot_pod_name
 
 
 def remove_local_dir(directory):
