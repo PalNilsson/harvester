@@ -451,7 +451,7 @@ class DaskSubmitter(PluginBase):
             workers = 4
 
             # hardcoded lease time for now
-            leasetime = 300
+            leasetime = 3600
 
             # protection against too many workers
             if workers > MAX_WORKERS:
