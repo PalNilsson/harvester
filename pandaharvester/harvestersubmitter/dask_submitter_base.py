@@ -100,9 +100,9 @@ class DaskSubmitterBase(object):
 
         # base images (the actual image name, e.g. dask-scheduler:latest, can get swapped later to e.g. dask-scheduler-ml:latest)
         self._images = {
-            'dask-scheduler': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-scheduler:test2',  # default
+            'dask-scheduler': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-scheduler:test3',  # default
             'dask-scheduler-ml': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-scheduler-ml:latest',
-            'dask-worker': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker:test2',  # default
+            'dask-worker': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker:test3',  # default
             'dask-worker-ml': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-worker-ml:latest',
             'pilot': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-pilot:latest',  # default
             'pilot-ml': 'europe-west1-docker.pkg.dev/gke-dev-311213/dask-images/dask-pilot-ml:latest',
